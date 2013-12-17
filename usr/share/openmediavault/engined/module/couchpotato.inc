@@ -62,7 +62,7 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract
 		$cmd = "/etc/init.d/couchpotato status";
 		$this->exec($cmd, $output);
 		if (strpos($output[0], 'failed!') > 0);
-			$cmd = "update-rc.d couchpotato enable && service couchpotato start 2>&1";
+			$cmd = "update-rc.d couchpotato defaults && service couchpotato start 2>&1";
 			$this->exec($cmd, $output);
     }
 
