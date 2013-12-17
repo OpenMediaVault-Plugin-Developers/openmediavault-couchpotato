@@ -1,0 +1,11 @@
+openmediavault-couchpotato (0.5.1) stable; urgency=low
+
+  * Make service start at boot
+
+ -- JH Miller <miller@omv-extras.org>  Tue, 17 Dec 2013 06:38:31 +0000
+
+openmediavault-couchpotato (0.5) stable; urgency=low
+
+  * Initial release
+
+ -- JH Miller <miller@omv-extras.org>  Thu, 12 Dec 2013 20:54:31 +0000

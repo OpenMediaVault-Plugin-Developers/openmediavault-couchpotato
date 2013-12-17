@@ -1,0 +1,21 @@
+#!/bin/sh -e
+
+case "$1" in
+        purge|remove|failed-upgrade|abort-install|abort-upgrade|disappear)
+			# Stop service
+			#invoke-rc.d couchpotato stop &>/dev/null
+			#[ -d /var/run/couchpotato ] && rm -Rf /var/run/couchpotato
+        ;;
+
+        upgrade)
+        ;;
+
+        *)
+                echo "postrm called with unknown argument '$1'" >&2
+                exit 1
+        ;;
+esac
+
+
+
+exit 0

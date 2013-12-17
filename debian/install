@@ -1,0 +1,4 @@
+usr/share/openmediavault/*  usr/share/openmediavault
+var/www/openmediavault/*    var/www/openmediavault
+opt/couchpotato/*             opt/couchpotato
+etc/init.d/*                etc/init.d

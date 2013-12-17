@@ -1,0 +1,40 @@
+#!/bin/sh
+
+set -e
+
+. /etc/default/openmediavault
+. /usr/share/openmediavault/scripts/helper-functions
+
+case "$1" in
+configure)
+    if ! omv_config_exists "/config/services/couchpotato"; then
+        echo "Initial configuration."
+        object="<enable>0</enable>"
+        object="${object}<showtab>0</showtab>"
+        omv_config_add_element "/config/services" "couchpotato" "${object}" true
+    fi
+
+    if ! grep -q "^couchpotato:" /etc/passwd; then
+        echo "Adding couchpotato user..."
+        useradd --create-home --groups users --no-user-group --shell /usr/sbin/nologin couchpotato
+    else
+        echo "couchpotato user already exists."
+    fi
+
+    if [ -e /var/run/couchpotato ]; then
+        echo "Cleaning old pid file..."
+        rm /var/run/couchpotato -Rf
+    fi
+
+    chown -R couchpotato:users /opt/couchpotato
+
+    ;;
+abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+*)
+    echo "postinst called with unknown argument" >&2
+    exit 1
+    ;;
+esac
+
+exit 0
