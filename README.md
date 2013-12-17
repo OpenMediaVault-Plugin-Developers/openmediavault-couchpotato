@@ -1,0 +1,4 @@
+openmediavault-couchpotato
+========================
+
+couchpotato plugin
