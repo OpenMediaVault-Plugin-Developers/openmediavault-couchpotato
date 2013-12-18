@@ -48,7 +48,14 @@ if [ -e $PID_FILE ]; then
         echo "Removing stale $PID_FILE"
         rm $PID_FILE
     fi
-fi
+fiis_running()
+{
+    if [ ! -e $PID_FILE ]; then
+        return 1
+    fi
+    return 0
+}
+
 
 case "$1" in
   start)
@@ -56,12 +63,17 @@ case "$1" in
         start-stop-daemon -d $APP_PATH -c $RUN_AS --start --pidfile $PID_FILE --exec $DAEMON -- $DAEMON_OPTS
         ;;
   stop)
-        echo "Stopping $DESC"
-        start-stop-daemon --stop --pidfile $PID_FILE --retry 15
+        if is_running; then
+            echo "Stopping $DESC"
+            start-stop-daemon --stop --pidfile $PID_FILE --retry 15
+        fi
         ;;
+
   restart|force-reload)
+        if is_running; then
+            start-stop-daemon --stop --pidfile $PID_FILE --retry 15
+        fi
         echo "Restarting $DESC"
-        start-stop-daemon --stop --pidfile $PID_FILE --retry 15
         start-stop-daemon -d $APP_PATH -c $RUN_AS --start --pidfile $PID_FILE --exec $DAEMON -- $DAEMON_OPTS
         ;;
   status)
