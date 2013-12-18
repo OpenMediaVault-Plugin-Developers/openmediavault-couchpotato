@@ -48,7 +48,9 @@ if [ -e $PID_FILE ]; then
         echo "Removing stale $PID_FILE"
         rm $PID_FILE
     fi
-fiis_running()
+fi
+
+is_running()
 {
     if [ ! -e $PID_FILE ]; then
         return 1
