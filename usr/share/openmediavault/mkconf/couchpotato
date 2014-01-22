@@ -1,0 +1,68 @@
+#! /bin/sh
+
+APP_PATH=/opt/couchpotato
+RUN_AS=couchpotato
+DATA_DIR=/home/couchpotato/.couchpotato
+/etc/init.d/couchpotato stop
+
+master() {
+  cd $APP_PATH
+  sudo -u $RUN_AS git stash
+  sudo -u $RUN_AS git checkout master
+}
+
+develop() {
+  cd $APP_PATH
+  sudo -u $RUN_AS git stash
+  sudo -u $RUN_AS git checkout develop
+}
+
+swap_a() {
+  if [ -d $APP_PATH ]; then
+    rm -Rf $APP_PATH
+  fi
+  if [ -d $DATA_DIR ]; then
+    rm -Rf $DATA_DIR
+  fi
+  sudo -u $RUN_AS git clone https://github.com/RuudBurger/CouchPotatoServer.git -b master $APP_PATH
+}
+
+swap_b() {
+  if [ -d $APP_PATH ]; then
+    rm -Rf $APP_PATH
+  fi
+  if [ -d $DATA_DIR ]; then
+    rm -Rf $DATA_DIR
+  fi
+  sudo -u $RUN_AS git clone "https://github.com/RuudBurger/CouchPotatoServer.git" -b "ThePirateBay" $APP_PATH
+}
+
+swap_c() {
+  if [ -d $APP_PATH ]; then
+    rm -Rf $APP_PATH
+  fi
+  if [ -d $DATA_DIR ]; then
+    rm -Rf $DATA_DIR
+  fi
+  sudo -u $RUN_AS git clone "https://github.com/RuudBurger/CouchPotatoServer.git"  -b "master" $APP_PATH
+}
+
+case "$2" in
+  swap_a)
+    swap_a
+    ;;
+  swap_b)
+    swap_b
+    ;;
+  swap_c)
+    swap_c
+    ;;
+  master)
+    master
+    ;;
+  develop)
+    develop
+    ;;
+  *)
+    exit 1
+esac

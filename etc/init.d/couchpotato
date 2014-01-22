@@ -14,19 +14,19 @@
 
 set -e
 
-############### EDIT ME ##################
+############### BEGIN EDIT ME ################
 RUN_AS=couchpotato
 RUN_GRP=users
-APP_PATH=/opt/couchpotato/
+APP_PATH=/opt/couchpotato
 DAEMON=/usr/bin/python
 PID_FILE=/var/run/couchpotato/couchpotato.pid
 PID_PATH=$(dirname $PID_FILE)
 NAME=couchpotato
 DESC=couchpotato
-DAEMON_OPTS=" CouchPotato.py --daemon --pid_file=${PID_FILE}"
+DATA_DIR=/home/couchpotato/.couchpotato
+EXTRA_DAEMON_OPTS=" --data_dir=${DATA_DIR}"
+DAEMON_OPTS=" $APP_PATH/CouchPotato.py --quiet --daemon --pid_file=${PID_FILE} ${EXTRA_DAEMON_OPTS}"
 ############### END EDIT ME ##################
-
-test -x $DAEMON || exit 0
 
 # Get lsb functions
 . /lib/lsb/init-functions
@@ -37,10 +37,21 @@ if [ ! -d $PID_PATH ]; then
     chown $RUN_AS $PID_PATH
 fi
 
+# Create DATA_DIR directory if not exist and ensure the Sickbeard user can write to it
 if [ ! -d $DATA_DIR ]; then
     mkdir -p $DATA_DIR
     chown $RUN_AS $DATA_DIR
 fi
+
+# Create logs directory if not exist and ensure the Sickbeard user can write to it
+if [ ! -d $DATA_DIR/logs ]; then
+    mkdir -p $DATA_DIR/logs
+    chown $RUN_AS $DATA_DIR/logs
+fi
+
+touch /home/couchpotato/.couchpotato/logs/CouchPotato.log
+chown $RUN_AS /home/couchpotato/.couchpotato/logs/CouchPotato.log
+chmod 775 -R /home/couchpotato/.couchpotato/logs
 
 if [ -e $PID_FILE ]; then
     PID=`cat $PID_FILE`
@@ -50,42 +61,67 @@ if [ -e $PID_FILE ]; then
     fi
 fi
 
-is_running()
-{
+if [ ! -f $DATA_DIR/settings.conf ]; then
+    sudo -u $RUN_AS echo "[core]
+data_dir = /home/couchpotato/.couchpotato
+permission_folder = 0777
+group = users
+port = 5050
+show_wizard = 1
+launch_browser = 0
+permission_file = 0777
+
+[updater]
+git_command = git" > $DATA_DIR/settings.conf
+    chown $RUN_AS $PID_PATH
+fi
+
+is_running() {
     if [ ! -e $PID_FILE ]; then
         return 1
     fi
     return 0
 }
 
+start() {
+  if ! is_running; then
+    chmod 775 /home/couchpotato/.couchpotato -R
+    echo "Starting $DESC"
+    sudo -u $RUN_AS $DAEMON $DAEMON_OPTS &> /dev/null
+  else
+    echo "$DESC is running"
+  fi
+}
+
+stop() {
+  if is_running; then
+    echo "Stopping $DESC"
+    start-stop-daemon --stop --pidfile $PID_FILE --retry 15
+  fi
+}
+
+restart() {
+  if is_running; then
+    stop
+  fi
+  echo "Restarting $DESC"
+  start
+}
 
 case "$1" in
   start)
-        echo "Starting $DESC"
-        start-stop-daemon -d $APP_PATH -c $RUN_AS --start --pidfile $PID_FILE --exec $DAEMON -- $DAEMON_OPTS
-        ;;
+    start
+    ;;
   stop)
-        if is_running; then
-            echo "Stopping $DESC"
-            start-stop-daemon --stop --pidfile $PID_FILE --retry 15
-        fi
-        ;;
-
-  restart|force-reload)
-        if is_running; then
-            start-stop-daemon --stop --pidfile $PID_FILE --retry 15
-        fi
-        echo "Restarting $DESC"
-        start-stop-daemon -d $APP_PATH -c $RUN_AS --start --pidfile $PID_FILE --exec $DAEMON -- $DAEMON_OPTS
-        ;;
+    stop
+    ;;
+  restart)
+    stop
+    start
+    ;;
   status)
-       status_of_proc -p $PID_FILE "$DAEMON" "$NAME"
-       ;;
+    status_of_proc -p $PID_FILE "$DAEMON" "$NAME"
+    ;;
   *)
-        N=/etc/init.d/$NAME
-        echo "Usage: $N {start|stop|restart|force-reload}" >&2
-        exit 1
-        ;;
+    echo "Usage: $0 {start|stop|restart|uninstall}"
 esac
-
-exit 0

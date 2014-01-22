@@ -6,14 +6,7 @@ set -e
 . /usr/share/openmediavault/scripts/helper-functions
 
 case "$1" in
-configure)
-    if ! omv_config_exists "/config/services/couchpotato"; then
-        echo "Initial configuration."
-        object="<enable>0</enable>"
-        object="${object}<showtab>0</showtab>"
-        omv_config_add_element "/config/services" "couchpotato" "${object}" true
-    fi
-
+    configure)
     if ! grep -q "^couchpotato:" /etc/passwd; then
         echo "Adding couchpotato user..."
         useradd --create-home --groups users --no-user-group --shell /usr/sbin/nologin couchpotato
@@ -26,12 +19,23 @@ configure)
         rm /var/run/couchpotato -Rf
     fi
 
-    chown -R couchpotato:users /opt/couchpotato
-
+    chmod 775 /opt
+    chown root:users /opt
+    chown couchpotato:users /etc/init.d/couchpotato
+	insserv -d couchpotato
+    if ! omv_config_exists "/config/services/couchpotato"; then
+        echo "Initial configuration."
+        object="<enable>0</enable>"
+        object="${object}<showtab>0</showtab>"
+        object="${object}<cp_branch>0</cp_branch>"
+        object="${object}<cp_repo></cp_repo>"
+        omv_config_add_element "/config/services" "couchpotato" "${object}" true
+    fi
+    update-rc.d couchpotato disable
     ;;
-abort-upgrade|abort-remove|abort-deconfigure)
+    abort-upgrade|abort-remove|abort-deconfigure)
     ;;
-*)
+    *)
     echo "postinst called with unknown argument" >&2
     exit 1
     ;;

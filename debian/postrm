@@ -7,11 +7,7 @@ set -e
 
 case "$1" in
         purge)
-                # Remove the configuration data.
-                #/etc/init.d/couchpotato stop &>/dev/null
-
-                rm -Rf /opt/couchpotato/* &>/dev/null
-                #omv_config_delete "//services/couchpotato"
+                rm -Rf /opt/couchpotato & >/dev/null
 
                 if [ -f "/var/run/couchpotato/couchpotato.pid" ]; then
                         PID=$(cat /var/run/couchpotato/couchpotato.pid);
@@ -22,19 +18,16 @@ case "$1" in
                         fi
                 fi
                 omv_config_delete "//services/couchpotato"
-                #if [ -f "/etc/init.d/couchpotato" ]; then
-                #       rm /etc/init.d/couchpotato &>/dev/null
-                #fi
-                #if [ -d "/opt/couchpotato" ]; then
-                #       rm -Rf /opt/couchpotato/* &>/dev/null
-                #fi
-                #if [ -d "/home/couchpotato/.couchpotato" ]; then
-                #       rm -Rf /home/couchpotato/.couchpotato &>/dev/null
-                #fi
-                #invoke-rc.d --force couchpotato stop
-                #update-rc.d couchpotato remove &>/dev/null
-                #rm /opt/couchpotato/* -Rf
+                if [ -d "/opt/couchpotato" ]; then
+                       rm -Rf /opt/couchpotato/* &>/dev/null
+                       rm -Rf /opt/couchpotato/.git &>/dev/null
+                       rm -Rf /opt/couchpotato/.gitignore
+                fi
                 userdel -r couchpotato
+                if [ ! -d /opt ]; then
+                    mkdir /opt
+                    chmod 775 /opt
+                fi
         ;;
 
         remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)

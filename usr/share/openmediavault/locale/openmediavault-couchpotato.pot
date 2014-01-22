@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: openmediavault-couchpotato\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-12-17 06:40-0600\n"
+"POT-Creation-Date: 2013-12-17 06:49-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,12 +16,6 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
-
-msgid "Couchpotato"
-msgstr ""
-
-msgid "Couchpotato Web Interface"
-msgstr ""
 
 msgid "Enable"
 msgstr ""
@@ -33,6 +27,12 @@ msgid "Show Tab"
 msgstr ""
 
 msgid "Show tab containing Couchpotato web interface frame."
+msgstr ""
+
+msgid "Couchpotato"
+msgstr ""
+
+msgid "Couchpotato Web Interface"
 msgstr ""
 
 msgid "Web Interface"

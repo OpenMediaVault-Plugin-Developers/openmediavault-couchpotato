@@ -37,48 +37,65 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract {
 
     function getSettings($params, $context) {
         global $xmlConfig;
-
-        // Validate the RPC caller context.
-        $this->validateMethodContext($context, array( "role" => OMV_ROLE_ADMINISTRATOR ));
-
-        // Get configuration object
+        $this->validateMethodContext($context, array(
+            "role" => OMV_ROLE_ADMINISTRATOR ));
         $object = $xmlConfig->get("//services/couchpotato");
-        if (is_null($object))
-            throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, "//services/couchpotato");
-        
-		// Modify result data
-        $object['enable']  = boolval($object['enable']);
-        $object['showtab'] = boolval($object['showtab']);
 
+        if(is_null($object))
+            throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, "//services/couchpotato");
+
+        $object['enable'] = boolval($object['enable']);
+        $object['showtab'] = boolval($object['showtab']);
+        $object['cp_branch'] = intval($object['cp_branch']);
         return $object;
     }
 
     function setSettings($params, $context) {
         global $xmlConfig;
-
-        // Validate the RPC caller context.
         $this->validateMethodContext($context, array( "role" => OMV_ROLE_ADMINISTRATOR ));
-
-        // Validate the parameters of the RPC service method.
         $this->validateMethodParams($params, '{
-            "type"       : "object",
+            "type" : "object",
             "properties" : {
-                "enable"  : { "type" : "boolean" },
-                "showtab" : { "type" : "boolean" }
+                "enable"        : { "type" : "boolean" },
+                "showtab"       : { "type" : "boolean" },
+                "cp_repo"       : { "type" : "string"},
+                "cp_branch"     : { "type" : "integer","enum":[0,1]}
             }
         }');
 
-        // Prepare configuration data
+        $xpath = "//services/couchpotato";
+        $oldObject = $xmlConfig->get($xpath);
+
+        if (is_null($oldObject))
+            throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, $xpath);
+
+        if($params['cp_repo'] != 'a' && $params['cp_branch'] == 1)
+            throw new OMVException(OMVErrorMsg::E_MISC_FAILURE, "You CAN NOT use this branch with this repository.");
+
+        if($params['cp_repo'] != $oldObject['cp_repo']) {
+            $params['cp_branch'] = 0;
+            $cmd = "omv-mkconf couchpotato swap_" . $params['cp_repo'];
+        } elseif($params['cp_branch'] != $oldObject['cp_branch']) {
+            if($params['cp_branch'] == 0) {
+                $cmd = "omv-mkconf couchpotato master 2>&1";
+            }
+            if($params['cp_branch'] == 1) {
+                $cmd = "omv-mkconf couchpotato develop 2>&1";
+            }
+        }
+
+        $this->exec($cmd);
         $object = array(
-            "enable"  => array_boolval($params, 'enable'),
-            "showtab"  => array_boolval($params, 'showtab')
-		);
+            "enable"            => array_boolval($params, 'enable'),
+            "showtab"           => array_boolval($params, 'showtab'),
+            "cp_branch"         => $params['cp_branch'],
+            "cp_repo"           => $params['cp_repo']
+        );
 
-        // Set configuration object
-        if (false === $xmlConfig->replace("//services/couchpotato", $object))
+        if(false === $xmlConfig->replace("//services/couchpotato", $object)) {
             throw new OMVException(OMVErrorMsg::E_CONFIG_SET_OBJECT_FAILED, "//services/couchpotato");
+        }
 
-        // Notify configuration changes
         $dispatcher = &OMVNotifyDispatcher::getInstance();
         $dispatcher->notify(OMV_NOTIFY_MODIFY, "org.openmediavault.services.couchpotato", $object);
     }
