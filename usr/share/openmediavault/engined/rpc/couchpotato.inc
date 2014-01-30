@@ -38,6 +38,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract {
     public function initialize() {
         $this->registerMethod("getSettings");
         $this->registerMethod("setSettings");
+        $this->registerMethod("enumerateRepos");
     }
 
     function getSettings($params, $context) {
@@ -84,6 +85,24 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract {
 
         $dispatcher = &OMVNotifyDispatcher::getInstance();
         $dispatcher->notify(OMV_NOTIFY_MODIFY, "org.openmediavault.services.couchpotato", $object);
+    }
+
+    public function enumerateRepos($params, $context)
+    {
+        $repos = array();
+
+        $repo = array(
+            "name"     => "CouchPotato - Main - RuudBurger/CouchPotatoServer",
+            "url"      => "https://github.com/RuudBurger/CouchPotatoServer.git",
+            "branches" => array(
+                "master",
+                "develop"
+            )
+        );
+
+        $repos[] = $repo;
+
+        return $repos;
     }
 }
 

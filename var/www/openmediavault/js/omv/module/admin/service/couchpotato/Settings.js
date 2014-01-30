@@ -81,44 +81,57 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                 allowBlank : false,
                 editable   : false,
                 queryMode  : "local",
-                store      : Ext.create("Ext.data.SimpleStore", {
-                    fields : [
-                        "value",
-                        "text"
-                    ],
-                    data : [
-                        [ "https://github.com/RuudBurger/CouchPotatoServer.git", _("CouchPotato - Main - RuudBurger/CouchPotatoServer") ]
-                    ],
+                store      : Ext.create("OMV.data.Store", {
+                    autoLoad : true,
+                    model    : OMV.data.Model.createImplicit({
+                        idProperty : "name",
+                        fields     : [{
+                            name : "url",
+                            type : "string"
+                        },{
+                            name : "name",
+                            type : "string"
+                        },{
+                            name : "branches",
+                            type : "array"
+                        }],
+                        proxy : {
+                            type    : "rpc",
+                            rpcData : {
+                                service : "Couchpotato",
+                                method  : "enumerateRepos"
+                            },
+                            appendSortParams : false
+                        }
+                    })
                 }),
-                displayField  : "text",
-                valueField    : "value",
+                displayField  : "name",
+                valueField    : "url",
                 triggerAction : "all",
                 selectOnFocus : true,
                 plugins       : [{
                     ptype : "fieldinfo",
                     text  : _("The repository you want to use. If changing from a current repository, setting will be wiped.")
-                }]
+                }],
+                listeners : {
+                    select : function(combo, records) {
+                        var record = records.pop();
+                        me.updateBranchCombo(record.get("branches"));
+                    },
+                    change : function(combo, value) {
+                        var record = combo.store.findRecord("url", value);
+                        me.updateBranchCombo(record.get("branches"));
+                    }
+                }
             },{
-                xtype      : "combo",
-                name       : "cp_branch",
-                fieldLabel : _("Branch"),
-                queryMode  : "local",
-                store      : Ext.create("Ext.data.SimpleStore", {
-                    fields : [
-                        "value",
-                        "text"
-                    ],
-                    data   : [
-                        [ "master", "Master" ],
-                        [ "develop", "Develop" ]
-                    ]
-                }),
-                displayField  : "text",
-                valueField    : "value",
+                xtype         : "combo",
+                name          : "cp_branch",
+                fieldLabel    : _("Branch"),
+                queryMode     : "local",
+                store         : [],
                 allowBlank    : false,
                 editable      : false,
                 triggerAction : "all",
-                value         : 0,
                 plugins       : [{
                     ptype : "fieldinfo",
                     text  : _("The branch you want to use.")
@@ -135,6 +148,18 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                 margin : "0 0 5 0"
             }]
         }];
+    },
+
+    updateBranchCombo : function(values) {
+        var me = this;
+        var branchCombo = me.findField("cp_branch");
+
+        branchCombo.store.removeAll();
+
+        for (var i = 0; i < values.length; i++) {
+            // TODO: Look over use of field1
+            branchCombo.store.add({ field1: values[i] });
+        }
     }
 });
 
