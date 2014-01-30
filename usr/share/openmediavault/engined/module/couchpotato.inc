@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C)      2013 OpenMediaVault Plugin Developers
+ * Copyright (C) 2013-2014 OpenMediaVault Plugin Developers
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,6 +54,15 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract
         );
     }
 
+    public function applyConfig()
+    {
+        $cmd = "sudo omv-mkconf " . $this->getName() . " 2>&1";
+
+        if (0 !== $this->exec($cmd, $output))
+            throw new OMVException(OMVErrorMsg::E_EXEC_FAILED,
+                $cmd, implode("\n", $output));
+    }
+
     public function startService() {
         global $xmlConfig;
 
@@ -71,7 +80,7 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract
     }
 
     public function stopService() {
-        $initd = new OMVSysVInitScript($this->getName(), false, false);
+        $initd = new OMVSysVInitScript($this->getName(), false);
         $initd->exec();
     }
 

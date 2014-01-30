@@ -1,68 +1,53 @@
-#! /bin/sh
+#!/bin/sh
+
+set -e
+
+. /etc/default/openmediavault
+. /usr/share/openmediavault/scripts/helper-functions
 
 APP_PATH=/opt/couchpotato
 RUN_AS=couchpotato
 DATA_DIR=/home/couchpotato/.couchpotato
-/etc/init.d/couchpotato stop
 
-master() {
+switch_repo() {
+  if [ -d $APP_PATH ]; then
+    rm -Rf $APP_PATH
+  fi
+
+  if [ -d $DATA_DIR ]; then
+    rm -Rf $DATA_DIR
+  fi
+
+  sudo -u $RUN_AS git clone "${1}" -b "${2}" "${APP_PATH}"
+}
+
+switch_branch() {
   cd $APP_PATH
   sudo -u $RUN_AS git reset --hard
-  sudo -u $RUN_AS git checkout master
+  sudo -u $RUN_AS git checkout "${1}"
 }
 
-develop() {
-  cd $APP_PATH
-  sudo -u $RUN_AS git reset --hard
-  sudo -u $RUN_AS git checkout develop
-}
+repo="$(omv_config_get "//services/couchpotato/cp_repo")"
+branch="$(omv_config_get "//services/couchpotato/cp_branch")"
 
-swap_a() {
-  if [ -d $APP_PATH ]; then
-    rm -Rf $APP_PATH
-  fi
-  if [ -d $DATA_DIR ]; then
-    rm -Rf $DATA_DIR
-  fi
-  sudo -u $RUN_AS git clone https://github.com/RuudBurger/CouchPotatoServer.git -b master $APP_PATH
-}
+# If /opt/couchpotato exists and is not empty
+# fetch current repo and branch
+# else clone the desired repo and branch
+if [ -d $APP_PATH -a -n "$(ls -A ${APP_PATH})" ]; then
+    cd $APP_PATH
+    current_repo="$(git config --get remote.origin.url)"
+    current_branch="$(git rev-parse --abbrev-ref HEAD)"
+else
+    switch_repo "${$repo}" "${$branch}"
+    exit 0
+fi
 
-swap_b() {
-  if [ -d $APP_PATH ]; then
-    rm -Rf $APP_PATH
-  fi
-  if [ -d $DATA_DIR ]; then
-    rm -Rf $DATA_DIR
-  fi
-  sudo -u $RUN_AS git clone "https://github.com/RuudBurger/CouchPotatoServer.git" -b "ThePirateBay" $APP_PATH
-}
+if [ "${repo}" != "${current_repo}" ]; then
+    switch_repo "${$repo}" "${$branch}"
+    exit 0
+fi
 
-swap_c() {
-  if [ -d $APP_PATH ]; then
-    rm -Rf $APP_PATH
-  fi
-  if [ -d $DATA_DIR ]; then
-    rm -Rf $DATA_DIR
-  fi
-  sudo -u $RUN_AS git clone "https://github.com/RuudBurger/CouchPotatoServer.git"  -b "master" $APP_PATH
-}
-
-case "$2" in
-  swap_a)
-    swap_a
-    ;;
-  swap_b)
-    swap_b
-    ;;
-  swap_c)
-    swap_c
-    ;;
-  master)
-    master
-    ;;
-  develop)
-    develop
-    ;;
-  *)
-    exit 1
-esac
+if [ "${branch}" != "${current_branch}" ]; then
+    switch_branch "${branch}"
+    exit 0
+fi

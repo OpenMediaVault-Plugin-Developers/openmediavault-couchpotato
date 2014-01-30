@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2013 OpenMediaVault Plugin Developers
+ * Copyright (C) 2013-2014 OpenMediaVault Plugin Developers
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 // require("js/omv/form/plugin/LinkedFields.js")
 
 Ext.define("OMV.module.admin.service.couchpotato.Settings", {
-    extend : "OMV.workspace.form.Panel",
-    uses   : [
+    extend   : "OMV.workspace.form.Panel",
+    requires : [
         "OMV.data.Model",
         "OMV.data.Store"
     ],
@@ -80,12 +80,20 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                 fieldLabel : "Repository",
                 allowBlank : false,
                 editable   : false,
-                store   : [
-                        [ "a", _("CouchPotato - Main - RuudBurger/CouchPotatoServer") ]
+                queryMode  : "local",
+                store      : Ext.create("Ext.data.SimpleStore", {
+                    fields : [
+                        "value",
+                        "text"
                     ],
-                mode            : "local",
-                triggerAction   : "all",
-                selectOnFocus   : true,
+                    data : [
+                        [ "https://github.com/RuudBurger/CouchPotatoServer.git", _("CouchPotato - Main - RuudBurger/CouchPotatoServer") ]
+                    ],
+                }),
+                displayField  : "text",
+                valueField    : "value",
+                triggerAction : "all",
+                selectOnFocus : true,
                 plugins       : [{
                     ptype : "fieldinfo",
                     text  : _("The repository you want to use. If changing from a current repository, setting will be wiped.")
@@ -95,14 +103,14 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                 name       : "cp_branch",
                 fieldLabel : _("Branch"),
                 queryMode  : "local",
-                store      : Ext.create("Ext.data.ArrayStore", {
+                store      : Ext.create("Ext.data.SimpleStore", {
                     fields : [
                         "value",
                         "text"
                     ],
                     data   : [
-                        [ 0, "Master" ],
-                        [ 1, "Develop" ]
+                        [ "master", "Master" ],
+                        [ "develop", "Develop" ]
                     ]
                 }),
                 displayField  : "text",

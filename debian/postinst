@@ -16,7 +16,7 @@ case "$1" in
 
         if [ -e /var/run/couchpotato ]; then
             echo "Cleaning old pid file..."
-            rm /var/run/couchpotato -Rf
+            rm -Rf /var/run/couchpotato
         fi
 
         chmod 775 /opt
