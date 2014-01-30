@@ -62,7 +62,7 @@ if [ -e $PID_FILE ]; then
 fi
 
 if [ ! -f $DATA_DIR/settings.conf ]; then
-    sudo -u $RUN_AS echo "[core]
+    echo "[core]
 data_dir = /home/couchpotato/.couchpotato
 permission_folder = 0777
 group = users
@@ -74,6 +74,8 @@ permission_file = 0777
 [updater]
 git_command = git" > $DATA_DIR/settings.conf
     chown $RUN_AS $PID_PATH
+    chown $RUN_AS $DATA_DIR/settings.conf
+    chmod 775 $DATA_DIR/settings.conf
 fi
 
 is_running() {
