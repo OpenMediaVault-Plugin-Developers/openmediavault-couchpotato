@@ -26,67 +26,53 @@ require_once "openmediavault/initscript.inc";
 class OMVModuleCouchpotato extends OMVModuleServiceAbstract
     implements OMVINotifyListener, OMVIModuleServiceStatus {
 
+    private function getXPath()
+    {
+        return "//services/couchpotato";
+    }
+
     public function getName() {
         return "couchpotato";
     }
 
     public function getStatus() {
         global $xmlConfig;
-        $xpath = "//services/couchpotato";
-        $object = $xmlConfig->get($xpath);
-        if(is_null($object)) {
-          throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, $xpath);
-        }
 
-        $cmd = "/etc/init.d/couchpotato status";
-        $this->exec($cmd, $output);
+        $object = $xmlConfig->get($this->getXPath());
+
+        if (is_null($object))
+            throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
+                $this->getXPath());
+
+        $initd = new OMVSysVInitScript($this->getName(), false);
 
         return array(
             "name"    => $this->getName(),
             "title"   => gettext("Couchpotato"),
-            "enabled" => boolval($object['enable']),
-            "running" => (strpos($output[0], 'is running') > -1)
+            "enabled" => boolval($object["enable"]),
+            "running" => $initd->status() === 0
         );
     }
 
     public function startService() {
         global $xmlConfig;
-        $xpath  = "//services/couchpotato";
-        $object = $xmlConfig->get($xpath);
-        if(is_null($object)) {
-	      throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, $xpath);
-        }
 
-        if(FALSE === boolval($object['enable'])) {
-          return;
-        }
-		
-        $cmd = "/etc/init.d/couchpotato status";
-        $this->exec($cmd, $output);
-        if(strpos($output[0], 'failed!') > 0) {
-          $cmd = "/etc/init.d/couchpotato start && update-rc.d couchpotato enable 2>&1";
-          $this->exec($cmd);
-        }
+        $object = $xmlConfig->get($this->getXPath());
+
+        if (is_null($object))
+            throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
+                $this->getXPath());
+
+        if (!boolval($object["enable"]))
+            return;
+
+        $initd = new OMVSysVInitScript($this->getName(), true);
+        $initd->exec();
     }
 
     public function stopService() {
-        global $xmlConfig;
-        $xpath  = "//services/couchpotato";
-        $object = $xmlConfig->get($xpath);
-        if(is_null($object)) {
-          throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, $xpath);
-        }
-
-        if(TRUE === boolval($object['enable'])) {
-          return;
-        }
-		
-        $cmd = "/etc/init.d/couchpotato status";
-        $this->exec($cmd, $output);
-        if(strpos($output[0], 'is running') > -1) {
-          $cmd = "/etc/init.d/couchpotato stop && update-rc.d couchpotato disable 2>&1";
-          $this->exec($cmd, $output);
-        }
+        $initd = new OMVSysVInitScript($this->getName(), false, false);
+        $initd->exec();
     }
 
     public function bindListeners(OMVNotifyDispatcher $dispatcher) {

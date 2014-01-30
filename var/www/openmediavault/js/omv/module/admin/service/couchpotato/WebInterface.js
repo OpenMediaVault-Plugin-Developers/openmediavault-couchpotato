@@ -23,7 +23,7 @@ Ext.define("OMV.module.admin.service.couchpotato.WebInterface", {
 
     initComponent : function() {
         var me = this;
-        var link = 'http://' + location.hostname + ':5050/';
+        var link = "http://" + location.hostname + ":5050/";
 
         me.html = "<iframe src='" + link + "' width='100%' height='100%' />";
         me.callParent(arguments);

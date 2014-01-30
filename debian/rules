@@ -2,6 +2,8 @@
 
 include ./openmediavault.mk
 
+PLUGIN_NAME=couchpotato
+
 clean:
 	dh_testdir
 	dh_testroot
@@ -19,10 +21,12 @@ binary-indep: install omv_clean_scm
 	dh_testroot
 	dh_installchangelogs
 	dh_installdebconf
+	dh_installinit -r --no-start --name=couchpotato
 	dh_lintian
 	dh_link
 	dh_compress
 	dh_fixperms
+	chmod +x $(CURDIR)/debian/openmediavault-${PLUGIN_NAME}/usr/share/openmediavault/mkconf/${PLUGIN_NAME}
 	dh_installdeb
 	dh_gencontrol
 	dh_md5sums

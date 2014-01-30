@@ -31,15 +31,15 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
     initComponent : function () {
         var me = this;
 
-        me.on('load', function () {
-            var checked = me.findField('enable').checked;
-            var showtab = me.findField('showtab').checked;
-            var parent = me.up('tabpanel');
+        me.on("load", function () {
+            var checked = me.findField("enable").checked;
+            var showtab = me.findField("showtab").checked;
+            var parent = me.up("tabpanel");
 
             if (!parent)
                 return;
 
-            var managementPanel = parent.down('panel[title=' + _("Web Interface") + ']');
+            var managementPanel = parent.down("panel[title=" + _("Web Interface") + "]");
 
             if (managementPanel) {
                 checked ? managementPanel.enable() : managementPanel.disable();
@@ -81,10 +81,10 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                 allowBlank : false,
                 editable   : false,
                 store   : [
-                        [ 'a', _("CouchPotato - Main - RuudBurger/CouchPotatoServer") ]
+                        [ "a", _("CouchPotato - Main - RuudBurger/CouchPotatoServer") ]
                     ],
-                mode            : 'local',
-                triggerAction   : 'all',
+                mode            : "local",
+                triggerAction   : "all",
                 selectOnFocus   : true,
                 plugins       : [{
                     ptype : "fieldinfo",
@@ -101,8 +101,8 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                         "text"
                     ],
                     data   : [
-                        [ 0, _("Master") ],
-                        [ 1, _("Develop") ]
+                        [ 0, "Master" ],
+                        [ 1, "Develop" ]
                     ]
                 }),
                 displayField  : "text",
@@ -121,12 +121,10 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                 text    : _("Couchpotato Web Interface"),
                 scope   : this,
                 handler : function() {
-                    var link = 'http://' + location.hostname + ':5050/';
-                    window.open(link, '_blank');
-                }
-            },{
-                border: false,
-                html: "<br />"                
+                    var link = "http://" + location.hostname + ":5050/";
+                    window.open(link, "_blank");
+                },
+                margin : "0 0 5 0"
             }]
         }];
     }
