@@ -10,6 +10,7 @@ case "$1" in
         if ! grep -q "^couchpotato:" /etc/passwd; then
             echo "Adding couchpotato user..."
             useradd --create-home --groups users --no-user-group --shell /usr/sbin/nologin couchpotato
+            insserv -d couchpotato
         else
             echo "couchpotato user already exists."
         fi
