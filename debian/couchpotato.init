@@ -37,13 +37,13 @@ if [ ! -d $PID_PATH ]; then
     chown $RUN_AS $PID_PATH
 fi
 
-# Create DATA_DIR directory if not exist and ensure the Sickbeard user can write to it
+# Create DATA_DIR directory if not exist and ensure the CouchPotato user can write to it
 if [ ! -d $DATA_DIR ]; then
     mkdir -p $DATA_DIR
     chown $RUN_AS $DATA_DIR
 fi
 
-# Create logs directory if not exist and ensure the Sickbeard user can write to it
+# Create logs directory if not exist and ensure the CouchPotato user can write to it
 if [ ! -d $DATA_DIR/logs ]; then
     mkdir -p $DATA_DIR/logs
     chown $RUN_AS $DATA_DIR/logs

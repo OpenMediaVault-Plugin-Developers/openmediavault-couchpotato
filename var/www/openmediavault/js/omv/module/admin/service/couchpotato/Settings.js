@@ -76,8 +76,8 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                 checked    : false
             },{
                 xtype      : "combo",
-                name       : "cp_repo",
-                fieldLabel : "Repository",
+                name       : "repo",
+                fieldLabel : _("Repository"),
                 allowBlank : false,
                 editable   : false,
                 queryMode  : "local",
@@ -125,7 +125,7 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                 }
             },{
                 xtype         : "combo",
-                name          : "cp_branch",
+                name          : "branch",
                 fieldLabel    : _("Branch"),
                 queryMode     : "local",
                 store         : [],
@@ -152,7 +152,7 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
 
     updateBranchCombo : function(values) {
         var me = this;
-        var branchCombo = me.findField("cp_branch");
+        var branchCombo = me.findField("branch");
 
         branchCombo.store.removeAll();
 

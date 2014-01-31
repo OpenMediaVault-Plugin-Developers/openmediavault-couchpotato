@@ -10,24 +10,25 @@ RUN_AS=couchpotato
 DATA_DIR=/home/couchpotato/.couchpotato
 
 switch_repo() {
-  if [ -d $APP_PATH ]; then
-    rm -Rf $APP_PATH
-  fi
+    if [ -d $APP_PATH ]; then
+        rm -Rf $APP_PATH
+    fi
 
-  if [ -d $DATA_DIR ]; then
-    rm -Rf $DATA_DIR
-  fi
-  sudo -u $RUN_AS git clone "${1}" -b "${2}" "${APP_PATH}"
+    if [ -d $DATA_DIR ]; then
+        rm -Rf $DATA_DIR
+    fi
+
+    sudo -u $RUN_AS git clone "${1}" -b "${2}" "${APP_PATH}"
 }
 
 switch_branch() {
-  cd $APP_PATH
-  sudo -u $RUN_AS git reset --hard
-  sudo -u $RUN_AS git checkout "${1}"
+    cd $APP_PATH
+    sudo -u $RUN_AS git reset --hard
+    sudo -u $RUN_AS git checkout "${1}"
 }
 
-repo="$(omv_config_get "//services/couchpotato/cp_repo")"
-branch="$(omv_config_get "//services/couchpotato/cp_branch")"
+repo="$(omv_config_get "//services/couchpotato/repo")"
+branch="$(omv_config_get "//services/couchpotato/branch")"
 
 # If /opt/couchpotato does not exists
 # must be first clone
@@ -38,7 +39,6 @@ fi
 
 # If /opt/couchpotato exists and is not empty
 # fetch current repo and branch
-# else clone the desired repo and branch
 if [ -n "$(ls -A $APP_PATH)" ]; then
     cd $APP_PATH
     current_repo="$(git config --get remote.origin.url)"

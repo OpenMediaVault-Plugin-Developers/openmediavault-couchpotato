@@ -52,7 +52,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract {
         if(is_null($object))
             throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, "//services/couchpotato");
 
-        $object["enable"] = boolval($object["enable"]);
+        $object["enable"]  = boolval($object["enable"]);
         $object["showtab"] = boolval($object["showtab"]);
 
         return $object;
@@ -61,27 +61,27 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract {
     function setSettings($params, $context) {
         global $xmlConfig;
 
-        $this->validateMethodContext($context, array( "role" => OMV_ROLE_ADMINISTRATOR ));
+        $this->validateMethodContext($context, array("role" => OMV_ROLE_ADMINISTRATOR));
 
         $this->validateMethodParams($params, '{
-            "type" : "object",
+            "type"       : "object",
             "properties" : {
-                "enable"    : { "type" : "boolean" },
-                "showtab"   : { "type" : "boolean" },
-                "cp_repo"   : { "type" : "string" },
-                "cp_branch" : { "type" : "string" }
+                "enable"  : { "type" : "boolean" },
+                "showtab" : { "type" : "boolean" },
+                "repo"    : { "type" : "string" },
+                "branch"  : { "type" : "string" }
             }
         }');
 
         $object = array(
-            "enable"            => array_boolval($params, "enable"),
-            "showtab"           => array_boolval($params, "showtab"),
-            "cp_branch"         => $params["cp_branch"],
-            "cp_repo"           => $params["cp_repo"]
+            "enable"  => array_boolval($params, "enable"),
+            "showtab" => array_boolval($params, "showtab"),
+            "branch"  => $params["branch"],
+            "repo"    => $params["repo"]
         );
 
         if(false === $xmlConfig->replace($this->getXPath(), $object))
-            throw new OMVException(OMVErrorMsg::E_CONFIG_SET_OBJECT_FAILED, "//services/couchpotato");
+            throw new OMVException(OMVErrorMsg::E_CONFIG_SET_OBJECT_FAILED, $this->getXPath());
 
         $dispatcher = &OMVNotifyDispatcher::getInstance();
         $dispatcher->notify(OMV_NOTIFY_MODIFY, "org.openmediavault.services.couchpotato", $object);
@@ -89,6 +89,8 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract {
 
     public function enumerateRepos($params, $context)
     {
+        $this->validateMethodContext($context, array("role" => OMV_ROLE_ADMINISTRATOR));
+
         $repos = array();
 
         $repo = array(

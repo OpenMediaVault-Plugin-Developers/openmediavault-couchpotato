@@ -7,7 +7,7 @@ set -e
 
 case "$1" in
     configure)
-        if ! grep -q "^couchpotato:" /etc/passwd; then
+        if ! getent passwd couchpotato >/dev/null 2>&1; then
             echo "Adding couchpotato user..."
             useradd --create-home --groups users --no-user-group --shell /usr/sbin/nologin couchpotato
             insserv -d couchpotato
@@ -27,8 +27,8 @@ case "$1" in
             echo "Initial configuration."
             object="<enable>0</enable>"
             object="${object}<showtab>0</showtab>"
-            object="${object}<cp_branch>0</cp_branch>"
-            object="${object}<cp_repo></cp_repo>"
+            object="${object}<branch></branch>"
+            object="${object}<repo></repo>"
             omv_config_add_element "/config/services" "couchpotato" "${object}" true
         fi
     ;;
