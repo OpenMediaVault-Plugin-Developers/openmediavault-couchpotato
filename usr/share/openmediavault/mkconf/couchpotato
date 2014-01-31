@@ -17,7 +17,6 @@ switch_repo() {
   if [ -d $DATA_DIR ]; then
     rm -Rf $DATA_DIR
   fi
-
   sudo -u $RUN_AS git clone "${1}" -b "${2}" "${APP_PATH}"
 }
 
@@ -30,24 +29,28 @@ switch_branch() {
 repo="$(omv_config_get "//services/couchpotato/cp_repo")"
 branch="$(omv_config_get "//services/couchpotato/cp_branch")"
 
+# If /opt/couchpotato does not exists
+# must be first clone
+if [ ! -d $APP_PATH ]; then
+    switch_repo "$repo" "$branch"
+    exit 0
+fi
+
 # If /opt/couchpotato exists and is not empty
 # fetch current repo and branch
 # else clone the desired repo and branch
-if [ -d $APP_PATH -a -n "$(ls -A ${APP_PATH})" ]; then
+if [ -n "$(ls -A $APP_PATH)" ]; then
     cd $APP_PATH
     current_repo="$(git config --get remote.origin.url)"
     current_branch="$(git rev-parse --abbrev-ref HEAD)"
-else
-    switch_repo "${$repo}" "${$branch}"
+fi
+
+if [ $repo != $current_repo ]; then
+    switch_repo "${repo}" "${branch}"
     exit 0
 fi
 
-if [ "${repo}" != "${current_repo}" ]; then
-    switch_repo "${$repo}" "${$branch}"
-    exit 0
-fi
-
-if [ "${branch}" != "${current_branch}" ]; then
+if [ $branch != $current_branch ]; then
     switch_branch "${branch}"
     exit 0
 fi
