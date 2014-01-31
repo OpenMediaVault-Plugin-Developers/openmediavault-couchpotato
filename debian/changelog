@@ -1,8 +1,5 @@
-openmediavault-couchpotato (0.5.26) stable; urgency=low
+openmediavault-couchpotato (0.5.7) stable; urgency=low
 
-  ** SNAPSHOT build @850fbad622b80c0aa2ba93c09a563277fafb4de7 **
+  * More changes
 
-  [ JH Miller ]
-  * Initial release
-
- -- root <root@localhost.localdomain>  Thu, 19 Dec 2013 12:53:10 +0000
+ -- OpenMediaVault Plugin Developers <plugins@omv-extras.org>  Fri, 31 Jan 2014 12:39:10 -0500
