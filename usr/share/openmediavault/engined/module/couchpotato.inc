@@ -44,13 +44,13 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract
             throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
                 $this->getXPath());
 
-        $initd = new OMVSysVInitScript($this->getName(), false);
+        $initd = new OMVSysVInitScript($this->getName());
 
         return array(
             "name"    => $this->getName(),
             "title"   => gettext("Couchpotato"),
             "enabled" => boolval($object["enable"]),
-            "running" => $initd->status() === 0
+            "running" => $initd->status() == 0
         );
     }
 
@@ -80,7 +80,7 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract
     }
 
     public function stopService() {
-        $initd = new OMVSysVInitScript($this->getName(), false);
+        $initd = new OMVSysVInitScript($this->getName());
         $initd->exec();
     }
 
