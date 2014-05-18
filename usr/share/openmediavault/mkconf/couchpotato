@@ -5,9 +5,12 @@ set -e
 . /etc/default/openmediavault
 . /usr/share/openmediavault/scripts/helper-functions
 
-APP_PATH=/opt/couchpotato
-RUN_AS=couchpotato
-DATA_DIR=/home/couchpotato/.couchpotato
+APP_PATH="/opt/couchpotato"
+repo="$(omv_config_get "//services/couchpotato/repo")"
+branch="$(omv_config_get "//services/couchpotato/branch")"
+RUN_AS="couchpotato"
+DATA_DIR="/home/couchpotato/.couchpotato"
+CONFIG="/home/couchpotato/.couchpotato/settings.conf"
 
 switch_repo() {
     if [ -d $APP_PATH ]; then
@@ -18,22 +21,20 @@ switch_repo() {
         rm -Rf $DATA_DIR
     fi
 
-    sudo -u $RUN_AS git clone "${1}" -b "${2}" "${APP_PATH}"
+    cd /
+    sudo -u $RUN_AS git clone "${repo}" -b "${branch}" "${APP_PATH}"
 }
 
 switch_branch() {
     cd $APP_PATH
     sudo -u $RUN_AS git reset --hard
-    sudo -u $RUN_AS git checkout "${1}"
+    sudo -u $RUN_AS git checkout "${branch}"
 }
-
-repo="$(omv_config_get "//services/couchpotato/repo")"
-branch="$(omv_config_get "//services/couchpotato/branch")"
 
 # If /opt/couchpotato does not exists
 # must be first clone
 if [ ! -d $APP_PATH ]; then
-    switch_repo "$repo" "$branch"
+    switch_repo
     exit 0
 fi
 
@@ -43,14 +44,17 @@ if [ -n "$(ls -A $APP_PATH)" ]; then
     cd $APP_PATH
     current_repo="$(git config --get remote.origin.url)"
     current_branch="$(git rev-parse --abbrev-ref HEAD)"
-fi
 
-if [ $repo != $current_repo ]; then
-    switch_repo "${repo}" "${branch}"
-    exit 0
-fi
+    if [ $repo != $current_repo ]; then
+        switch_repo
+        exit 0
+    fi
 
-if [ $branch != $current_branch ]; then
-    switch_branch "${branch}"
-    exit 0
+    if [ $branch != $current_branch ]; then
+        switch_branch
+        exit 0
+    fi
+else
+   rm -rf $APP_PATH
+   switch_repo
 fi

@@ -89,7 +89,7 @@ start() {
   if ! is_running; then
     chmod 775 /home/couchpotato/.couchpotato -R
     echo "Starting $DESC"
-    sudo -u $RUN_AS $DAEMON $DAEMON_OPTS &> /dev/null
+    sudo -u $RUN_AS $DAEMON $DAEMON_OPTS &> /dev/null 2>&1
   else
     echo "$DESC is running"
   fi
