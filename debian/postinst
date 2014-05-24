@@ -32,16 +32,6 @@ case "$1" in
             omv_config_add_element "/config/services" "couchpotato" "${object}" true
         fi
         
-        #Check for new omv_config options
-        if ! omv_config_exists "/config/services/couchpotato/port"; then
-            echo "Extra configuration."
-            object="<port>5050</port>"
-            object="${object}<mntentref></mntentref>"
-            object="${object}<path></path>"
-            object="${object}<forks></forks>"
-            omv_config_add_element "/config/services" "couchpotato" "${object}" true
-        fi
-		
         omv_install_fixperms
 
         # Activate package triggers. These triggers are only set during the
