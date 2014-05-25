@@ -158,7 +158,7 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                 maxValue: 65535,
                 allowDecimals: false,
                 allowBlank: false,
-                value: 21
+                value: 5050
             },{
                 xtype   : "button",
                 name    : "opencouchpotato",
