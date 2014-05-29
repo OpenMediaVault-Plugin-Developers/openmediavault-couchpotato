@@ -109,15 +109,16 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract {
 
         $output = array();
         if (file_exists("/home/couchpotato/.couchpotato/settings.conf")) {
-            $cmd = "grep -m1 port /home/couchpotato/.couchpotato/settings.conf | cut -d ' ' -f 3 2>&1";
+            $cmd = "grep -A 20 \\[core /home/couchpotato/.couchpotato/settings.conf | grep ^port | cut -d ' ' -f 3 2>&1";
             $this->exec($cmd, $output);
-            if ($output == "")
+            //if ($output == "")
+            if (strlen($output) != 4)
                 $output = "5050";
         } else {
             $output = "5050";
         }
 
-        $cmd = "sed -i 's/:[[:digit:]]\{4\}/:" . $output[0] . "/g' /var/www/openmediavault/js/omv/module/admin/service/couchpotato/WebInterface.js";
+        $cmd = "sed -i 's/:[[:digit:]].*\//:" . $output[0] . "\//g' /var/www/openmediavault/js/omv/module/admin/service/couchpotato/WebInterface.js";
         $this->exec($cmd);
 
         $object["enable"]  = boolval($object["enable"]);
