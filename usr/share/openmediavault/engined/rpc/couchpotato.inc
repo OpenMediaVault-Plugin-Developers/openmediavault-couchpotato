@@ -109,13 +109,13 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract {
 
         $output = array();
         if (file_exists("/home/couchpotato/.couchpotato/settings.conf")) {
-            $cmd = "grep -A 20 \\[core /home/couchpotato/.couchpotato/settings.conf | grep ^port | cut -d ' ' -f 3 2>&1";
+            $cmd = "grep -A 20 \\[core\\] /home/couchpotato/.couchpotato/settings.conf | grep ^port | cut -d ' ' -f 3 2>&1";
             $this->exec($cmd, $output);
             //if ($output == "")
-            if (strlen($output) != 4)
-                $output = "5050";
+            if (strlen($output[0]) != 4)
+                $output[0] = "5050";
         } else {
-            $output = "5050";
+            $output[0] = "5050";
         }
 
         $cmd = "sed -i 's/:[[:digit:]].*\//:" . $output[0] . "\//g' /var/www/openmediavault/js/omv/module/admin/service/couchpotato/WebInterface.js";
