@@ -124,11 +124,6 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract implements
             $this->getEventMessagePath(),
             array($this, "setDirty")
         );
-
-        //$dispatcher->addListener(
-        //    OMV_NOTIFY_CREATE | OMV_NOTIFY_MODIFY | OMV_NOTIFY_DELETE,
-        //    $this->getEventMessagePathFork(),
-        //    array($this, "setDirty"));
     }
 }
 

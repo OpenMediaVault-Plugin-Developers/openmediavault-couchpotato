@@ -103,7 +103,6 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
 
         $this->registerMethod("doBackup");
         $this->registerMethod("doRestore");
-        $this->registerMethod("getCandidates");
     }
 
     public function getSettings($params, $context)
@@ -121,6 +120,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             );
         }
 
+        // Get current port as set in couchpotatos config file
         $output = array();
 
         if (file_exists("/home/couchpotato/.couchpotato/settings.conf")) {
@@ -133,12 +133,6 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         } else {
             $output[0] = "5050";
         }
-
-        $cmd = "sed -i 's/:[[:digit:]].*\//:"
-             . $output[0]
-             . "\//g' /var/www/openmediavault/js/omv/module/admin/service/couchpotato/WebInterface.js";
-
-        $this->exec($cmd);
 
         $object["enable"]  = boolval($object["enable"]);
         $object["showtab"] = boolval($object["showtab"]);
@@ -301,13 +295,14 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             }'
         );
 
-        // TODO: Check if valid fork.
+        // TODO: Check if valid fork. A valid fork should start with either http(s):// or git://
         if (substr($params["fork"], 0, 4) !== "http" &&
             substr($params["fork"], 0, 3) !== "git"
         ) {
             throw new OMVException(OMVErrorMsg::E_EXEC_MISC, "Not valid git repo");
         }
 
+        // If valid query repo for a list of branches.
         $cmd = "git ls-remote -h " . $params["fork"] . " | sed 's?.*refs/heads/??'";
         $this->exec($cmd, $output);
 
@@ -325,7 +320,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             );
         }
 
-        // Prepare configuration data.
+        // Prepare configuration data and add all branches found
         $object = array(
             "uuid"        => ($params["uuid"] == $GLOBALS["OMV_UUID_UNDEFINED"]) ? OMVUtil::uuid() : $params["uuid"],
             "name"        => $params["name"],
@@ -384,66 +379,10 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         return $this->deleteConfigObjectByPath($xpath, $this->getEventMessagePathFork());
     }
 
-    public function getCandidates($params, $context)
-    {
-        global $xmlConfig;
-
-        // Validate the RPC caller context.
-        $this->validateMethodContext($context, array("role" => OMV_ROLE_ADMINISTRATOR));
-
-        // Get a list of mount points, except bind mounts.
-        $xpath = "//system/fstab/mntent[not(contains(opts,'bind'))]";
-        $objects = $xmlConfig->getList($xpath);
-
-        if (is_null($objects)) {
-            throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, $xpath);
-        }
-
-        // Get the filesystem details for each mount point.
-        $result = array();
-
-        foreach ($objects as $objectk => $objectv) {
-            $fs = new OMVFilesystem($objectv["fsname"]);
-
-            if (!$fs->exists()) {
-                continue;
-            }
-
-            // Skip the filesystems that are not mounted at the moment.
-            if (false === $fs->isMounted()) {
-                continue;
-            }
-
-            // Get some filesystem details.
-            $devicefile = $fs->getDeviceFile();
-            $label = $fs->getLabel();
-
-            // Prepare result object.
-            $object = array(
-                "uuid"        => $objectv["uuid"],
-                "devicefile"  => $devicefile,
-                "description" => !empty($label) ? $label : $devicefile
-            );
-
-            // Get some more filesystem details if possible.
-            if (false !== ($fsStats = $fs->getStatistics())) {
-                $object["description"] = sprintf(
-                    gettext("%s (%s available)"),
-                    $object["description"],
-                    binary_format($fsStats["available"])
-                );
-            }
-
-            $result[] = $object;
-        }
-
-        return $result;
-    }
-
     public function doBackup($params, $context)
     {
         global $xmlConfig;
-
+        //Couchpotato needs to have run once to generate its settings. Check if this is true
         if (!file_exists("/home/couchpotato/.couchpotato/settings.conf")) {
             throw new OMVException(OMVErrorMsg::E_EXEC_MISC, "No settings folder found!");
         }
@@ -502,22 +441,8 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
                 return $bgStatusFilename;
             }
 
-            // Delete current folder
+            // Delete current settings folder
             system("rm -rf " . escapeshellarg($dirPath));
-
-            //if (substr($dirPath, strlen($dirPath) - 1, 1) != '/') {
-            //    $dirPath .= '/';
-            //}
-
-            //$files = glob($dirPath . '*', GLOB_MARK);
-            //foreach ($files as $file) {
-            //    if (is_dir($file)) {
-            //        self::deleteDir($file);
-            //    } else {
-            //        unlink($file);
-            //    }
-            //}
-            //rmdir($dirPath);
 
             // Child process.
             try {
@@ -553,7 +478,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         if (is_null($objects)) {
             throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, $xpath);
         }
-
+        // Add default fork and its branches. Do it here so users can't delete the main branch.
         $repo = array(
             "0" => array(
                 "uuid" => "11111111-2222-3333-4444-555555555555",
@@ -570,7 +495,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
                 )
             )
         );
-
+        // Add any user added forks and branches
         $repos = array_merge($repo, $objects);
 
         return $repos;

@@ -202,7 +202,7 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                     proxy : {
                         type : "rpc",
                         rpcData : {
-                            service : "Couchpotato",
+                            service : "ShareMgmt",
                             method  : "getCandidates"
                         },
                         appendSortParams : false

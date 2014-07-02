@@ -24,9 +24,19 @@ Ext.define("OMV.module.admin.service.couchpotato.WebInterface", {
     initComponent : function() {
         var me = this;
 
-        var link = "http://" + location.hostname + ":5050/";
+        OMV.Rpc.request({
+            scope    : this,
+            callback : function(id, success, response) {
+                var link = "http://" + window.location.hostname + ":" + response.port;
+                me.html = "<iframe src='" + link + "' sandbox='allow-same-origin allow-forms allow-scripts' width='100%' height='100%' />";
+            },
+            relayErrors : false,
+            rpcData     : {
+                service  : "Couchpotato",
+                method   : "getSettings"
+            }
+        });
 
-        me.html = "<iframe src='" + link + "' sandbox='allow-same-origin allow-forms allow-scripts' width='100%' height='100%' />";
         me.callParent(arguments);
     }
 });
