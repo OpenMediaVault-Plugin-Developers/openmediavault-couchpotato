@@ -37,12 +37,6 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract implements
         return sprintf("org.openmediavault.service.%s", $this->getPluginName());
     }
 
-    private function getEventMessagePathFork()
-    {
-        $path = sprintf("%s.forks.fork", $this->getEventMessagePath());
-        return $path;
-    }
-
     private function getXPath()
     {
         $path = sprintf("//services/%s", $this->getPluginName());
