@@ -39,8 +39,7 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract implements
 
     private function getXPath()
     {
-        $path = sprintf("//services/%s", $this->getPluginName());
-        return $path;
+        return sprintf("//services/%s", $this->getPluginName());
     }
 
     public function getName()
