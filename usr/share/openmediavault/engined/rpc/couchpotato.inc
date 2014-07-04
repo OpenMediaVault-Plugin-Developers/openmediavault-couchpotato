@@ -479,7 +479,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
                     $bgOutputFilename
                 );
 
-                $cmd = sprintf("tar -zxvf %s -C / 2>&1", $backupPath);
+                $cmd = sprintf("tar -zxvPf %s -C / 2>&1", $backupPath);
 
                 $this->exec($cmd, $output, $bgOutputFilename);
                 $this->finalizeBgProcStatus($bgStatusFilename, $output);
