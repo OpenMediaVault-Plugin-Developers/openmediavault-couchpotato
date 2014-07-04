@@ -89,7 +89,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         if (is_null($object)) {
             throw new OMVException(
                 OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
-                $xPath
+                $XPath
             );
         }
 
@@ -155,7 +155,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         if (is_null($oldObject)) {
             throw new OMVException(
                 OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
-                $xPath
+                $XPath
             );
         }
 
@@ -212,7 +212,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         $objects = $xmlConfig->getList($this->getXPathFork());
 
         if (is_null($objects)) {
-            throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, $xPath);
+            throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, $XPath);
         }
 
         // Filter the result.
