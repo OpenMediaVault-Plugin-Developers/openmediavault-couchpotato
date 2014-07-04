@@ -89,7 +89,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         if (is_null($object)) {
             throw new OMVException(
                 OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
-                $xPath
+                $XPath
             );
         }
 
@@ -212,7 +212,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         $objects = $xmlConfig->getList($this->getXPathFork());
 
         if (is_null($objects)) {
-            throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, $xPath);
+            throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, $XPath);
         }
 
         // Filter the result.
@@ -416,7 +416,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             $backupPath = $xmlConfig->get($xPath);
 
             $cmd = sprintf(
-                "tar -zcvf %s %s 2>&1",
+                "tar -zcvPf %s %s 2>&1",
                 $backupPath,
                 $this->couchpotatoSettingsDir
             );
