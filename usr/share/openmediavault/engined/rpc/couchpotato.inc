@@ -155,7 +155,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         if (is_null($oldObject)) {
             throw new OMVException(
                 OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
-                $XPath
+                $xPath
             );
         }
 
