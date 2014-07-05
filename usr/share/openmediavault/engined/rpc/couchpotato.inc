@@ -424,7 +424,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             $this->exec($cmd, $output, $bgOutputFilename);
             $this->finalizeBgProcStatus($bgStatusFilename, $output);
             exit(0);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->finalizeBgProcStatus($bgStatusFilename, "", $e);
             exit(1);
         }
@@ -485,7 +485,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
                 $this->finalizeBgProcStatus($bgStatusFilename, $output);
                 $couchpotatoModule->startService();
                 exit(0);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->finalizeBgProcStatus($bgStatusFilename, "", $e);
                 $couchpotatoModule->startService();
                 exit(1);
