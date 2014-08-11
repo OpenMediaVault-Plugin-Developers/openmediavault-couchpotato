@@ -103,8 +103,8 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
                 INI_SCANNER_RAW
             );
 
-            if (!empty($config["core"]["port"])) {
-                $port = $config["core"]["port"];
+            if (!empty($config["[core]"]["port"])) {
+                $port = $config["[core]"]["port"];
             }
         }
 
