@@ -5,37 +5,24 @@ set -e
 . /etc/default/openmediavault
 . /usr/share/openmediavault/scripts/helper-functions
 
+OMV_COUCHPOTATO_APP_PATH="/opt/couchpotato/"
+OMV_COUCHPOTATO_DATA_PATH="/var/opt/couchpotato"
+OMV_COUCHPOTATO_XPATH="/config/services/couchpotato"
+
 case "$1" in
     purge)
-        rm -Rf /opt/couchpotato & >/dev/null
+        omv_config_delete $OMV_COUCHPOTATO_XPATH
 
-        if [ -f "/var/run/couchpotato/couchpotato.pid" ]; then
-            PID=$(cat /var/run/couchpotato/couchpotato.pid);
-            kill -0 $PID 2>/dev/null;
-
-            if [ $? -eq 0 ]; then
-                kill -9 $PID;
-                rm -Rf /var/run/couchpotato
-            fi
+        if [ -d $OMV_COUCHPOTATO_APP_PATH ]; then
+            find $OMV_COUCHPOTATO_APP_PATH -mindepth 1 -delete
         fi
 
-        omv_config_delete "//services/couchpotato"
-
-        if [ -d "/opt/couchpotato" ]; then
-            rm -Rf /opt/couchpotato/* &>/dev/null
-            rm -Rf /opt/couchpotato/.git &>/dev/null
-            rm -Rf /opt/couchpotato/.gitignore
-        fi
-
-        userdel -r couchpotato
-
-        if [ ! -d /opt ]; then
-            mkdir /opt
-            chmod 775 /opt
+        if [ -d $OMV_COUCHPOTATO_DATA_PATH ]; then
+            find $OMV_COUCHPOTATO_DATA_PATH -mindepth 1 -delete
         fi
     ;;
 
-        remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+    remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
     ;;
 
     *)
@@ -43,5 +30,7 @@ case "$1" in
         exit 1
     ;;
 esac
+
+#DEBHELPER#
 
 exit 0

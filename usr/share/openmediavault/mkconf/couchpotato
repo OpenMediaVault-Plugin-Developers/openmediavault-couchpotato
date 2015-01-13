@@ -5,56 +5,61 @@ set -e
 . /etc/default/openmediavault
 . /usr/share/openmediavault/scripts/helper-functions
 
-APP_PATH="/opt/couchpotato"
-repo="$(omv_config_get "//services/couchpotato/repo")"
-branch="$(omv_config_get "//services/couchpotato/branch")"
-RUN_AS="couchpotato"
-DATA_DIR="/home/couchpotato/.couchpotato"
-CONFIG="/home/couchpotato/.couchpotato/settings.conf"
-
-switch_repo() {
-    if [ -d $APP_PATH ]; then
-        rm -Rf $APP_PATH
-    fi
-
-    if [ -d $DATA_DIR ]; then
-        rm -Rf $DATA_DIR
-    fi
-
-    cd /
-    sudo -u $RUN_AS git clone $repo -b $branch $APP_PATH
-}
-
-switch_branch() {
-    cd $APP_PATH
-    sudo -u $RUN_AS git reset --hard
-    sudo -u $RUN_AS git checkout $branch
-}
-
-# If /opt/couchpotato does not exists
-# must be first clone
-if [ ! -d $APP_PATH ]; then
-    switch_repo $repo $branch $APP_PATH $DATA_DIR $RUN_AS
-    exit 0
+if [ -f /etc/default/couchpotato ]; then
+    . /etc/default/couchpotato
 fi
 
-# If /opt/couchpotato exists and is not empty
-# fetch current repo and branch
-if [ -n "$(ls -A $APP_PATH)" ]; then
-    cd $APP_PATH
+OMV_COUCHPOTATO_APP_PATH=${CP_HOME-/opt/couchpotato/}
+OMV_COUCHPOTATO_DATA_PATH=${CP_DATA-/var/opt/couchpotato}
+OMV_COUCHPOTATO_USER=${CP_USER-couchpotato}
+OMV_COUCHPOTATO_XPATH="/config/services/couchpotato"
+
+switch_repo()
+{
+    local repo=$1
+    local branch=$2
+
+    if [ -d $OMV_COUCHPOTATO_APP_PATH ]; then
+        find $OMV_COUCHPOTATO_APP_PATH -mindepth 1 -delete
+    fi
+
+    if [ -d $OMV_COUCHPOTATO_DATA_PATH ]; then
+        find $OMV_COUCHPOTATO_DATA_PATH -mindepth 1 -delete
+    fi
+
+    su -s /bin/sh -c "git clone $repo -b $branch $OMV_COUCHPOTATO_APP_PATH" $OMV_COUCHPOTATO_USER
+}
+
+switch_branch()
+{
+    local branch=$1
+
+    cd $OMV_COUCHPOTATO_APP_PATH
+
+    su -s /bin/sh -c "git reset --hard" $OMV_COUCHPOTATO_USER
+    su -s /bin/sh -c "git checkout $branch" $OMV_COUCHPOTATO_USER
+}
+
+repo="$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/repo")"
+branch="$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/branch")"
+
+# If $OMV_COUCHPOTATO_APP_PATH exists and is not empty fetch current repo and branch.
+if [ -n "$(ls -A $OMV_COUCHPOTATO_APP_PATH)" ]; then
+    cd $OMV_COUCHPOTATO_APP_PATH
+
     current_repo="$(git config --get remote.origin.url)"
     current_branch="$(git rev-parse --abbrev-ref HEAD)"
 
     if [ $repo != $current_repo ]; then
-        switch_repo $repo $branch $APP_PATH $DATA_DIR $RUN_AS
+        switch_repo $repo $branch
         exit 0
     fi
 
     if [ $branch != $current_branch ]; then
-        switch_branch $branch $APP_PATH $RUN_AS
+        switch_branch $branch
         exit 0
     fi
 else
-   rm -rf $APP_PATH
-   switch_repo $repo $branch $APP_PATH $DATA_DIR $RUN_AS
+   switch_repo $repo $branch
+   exit 0
 fi

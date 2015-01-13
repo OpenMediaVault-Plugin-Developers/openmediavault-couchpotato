@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2013-2014 OpenMediaVault Plugin Developers
+ * Copyright (C) 2013-2015 OpenMediaVault Plugin Developers
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,39 +21,31 @@ require_once "openmediavault/config.inc";
 require_once "openmediavault/error.inc";
 require_once "openmediavault/notify.inc";
 require_once "openmediavault/object.inc";
-require_once "openmediavault/product.inc";
 require_once "openmediavault/rpcservice.inc";
-require_once "openmediavault/system.inc";
-require_once "openmediavault/util.inc";
 
 class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
 {
-    private $couchpotatoSettingsDir = "/home/couchpotato/.couchpotato/";
-    private $couchpotatoSettingsFile = "/home/couchpotato/.couchpotato/settings.conf";
-
-    private function getPluginName()
-    {
-        return strtolower($this->getName());
-    }
+    private $couchpotatoSettingsDir = "/var/opt/couchpotato";
+    private $couchpotatoSettingsFile = "/var/opt/couchpotato/settings.conf";
 
     private function getEventMessagePath()
     {
-        return sprintf("org.openmediavault.service.%s", $this->getPluginName());
+        return "org.openmediavault.service.couchpotato";
     }
 
-    private function getXPath()
+    private function getXpath()
     {
-        return sprintf("//services/%s", $this->getPluginName());
+        return "/config/services/couchpotato";
     }
 
-    private function getXPathForks()
+    private function getForksXpath()
     {
-        return sprintf("%s/forks", $this->getXPath());
+        return sprintf("%s/forks", $this->getXpath());
     }
 
-    private function getXPathFork()
+    private function getForkXpath()
     {
-        return sprintf("%s/fork", $this->getXPathForks());
+        return sprintf("%s/fork", $this->getForksXpath());
     }
 
     public function getName()
@@ -84,18 +76,18 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             "role" => OMV_ROLE_ADMINISTRATOR
         ));
 
-        $object = $xmlConfig->get($this->getXPath());
+        $object = $xmlConfig->get($this->getXpath());
 
         if (is_null($object)) {
             throw new OMVException(
                 OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
-                $this->getXPath()
+                $this->getXpath()
             );
         }
 
         $port = 5050;
 
-        // Get current port as set in Couchpotatos config file
+        // Get current port as set in Couchpotatos config file.
         if (file_exists($this->couchpotatoSettingsFile)) {
             $config = parse_ini_file(
                 $this->couchpotatoSettingsFile,
@@ -103,14 +95,18 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
                 INI_SCANNER_RAW
             );
 
-            if (!empty($config["[core]"]["port"])) {
-                $port = $config["[core]"]["port"];
+            if (!empty($config["core"]["port"])) {
+                $port = $config["core"]["port"];
             }
         }
 
-        $object["enable"]  = boolval($object["enable"]);
-        $object["showtab"] = boolval($object["showtab"]);
-        $object["port"]    = intval($port);
+        // The port value is a readonly value fetched from the
+        // CouchPotato configuration.
+        $object["port"] = intval($port);
+
+        $object["enable"] = boolval($object["enable"]);
+        $object["show_tab"] = boolval($object["show_tab"]);
+
 
         // Remove useless fields from the result object.
         unset($object["forks"]);
@@ -129,51 +125,38 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         $this->validateMethodParams(
             $params,
             '{
-                "type"       : "object",
-                "properties" : {
-                    "enable"    : { "type" : "boolean" },
-                    "showtab"   : { "type" : "boolean" },
-                    "branch"    : { "type" : "string" },
-                    "repo"      : { "type" : "string" },
-                    "port"      : { "type" : "integer" },
-                    "mntentref" : { ' . $GLOBALS["OMV_JSONSCHEMA_UUID_NONE"] . ' },
-                    "path"      : { "type" : "string", "optional" : true }
+                "type": "object",
+                "properties": {
+                    "enable": { "type": "boolean" },
+                    "repo": { "type": "string" },
+                    "branch": { "type": "string" },
+                    "show_tab": { "type": "boolean" }
                 }
             }'
         );
 
-        $xPath = sprintf("//system/fstab/mntent[uuid='%s']", $params["mntentref"]);
-        $deviceDir = $xmlConfig->get($xPath);
-        $deviceDir = $deviceDir["dir"];
-
-        $backupPath = "$deviceDir/CPbackup";
-        $params["path"] = $backupPath;
-
         // Get existing configuration object
-        $oldObject = $xmlConfig->get($this->getXPath());
+        $oldObject = $xmlConfig->get($this->getXpath());
 
         if (is_null($oldObject)) {
             throw new OMVException(
                 OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
-                $this->getXPath()
+                $this->getXpath()
             );
         }
 
         $object = array(
-            "enable"    => array_boolval($params, "enable"),
-            "showtab"   => array_boolval($params, "showtab"),
-            "branch"    => $params["branch"],
-            "repo"      => $params["repo"],
-            "port"      => $params["port"],
-            "mntentref" => $params["mntentref"],
-            "path"      => $params["path"],
-            "forks"     => isset($oldObject["forks"]) ? $oldObject["forks"] : array(),
+            "enable" => array_boolval($params, "enable"),
+            "branch" => $params["branch"],
+            "repo" => $params["repo"],
+            "show_tab" => array_boolval($params, "show_tab"),
+            "forks" => $oldObject["forks"],
         );
 
-        if (false === $xmlConfig->replace($this->getXPath(), $object)) {
+        if ($xmlConfig->replace($this->getXpath(), $object) === false) {
             throw new OMVException(
                 OMVErrorMsg::E_CONFIG_SET_OBJECT_FAILED,
-                $this->getXPath()
+                $this->getXpath()
             );
         }
 
@@ -187,32 +170,76 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         return $object;
     }
 
+    public function enumerateRepos($params, $context)
+    {
+        global $xmlConfig;
+
+        $this->validateMethodContext($context, array(
+            "role" => OMV_ROLE_ADMINISTRATOR
+        ));
+
+        // Get configuration data.
+        $userRepos = $xmlConfig->getList($this->getForkXpath());
+
+        if (is_null($userRepos)) {
+            throw new OMVException(
+                OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
+                $this->getForkXpath()
+            );
+        }
+
+        // Add default repos and their branches. Do it here so users can't
+        // delete them.
+        $defaultRepos = array(
+            array(
+                "uuid" => "2587ceb0-9b25-11e4-bd06-0800200c9a66",
+                "name" => "Main repository",
+                "fork" => "https://github.com/RuudBurger/CouchPotatoServer.git",
+                "branches" => array(
+                    "3d",
+                    "desktop",
+                    "develop",
+                    "feature/redesign",
+                    "master",
+                    "tv",
+                    "tv_old"
+                )
+            ),
+        );
+
+        $repos = array_merge($defaultRepos, $userRepos);
+
+        return $repos;
+    }
+
     public function getForks($params, $context)
     {
         global $xmlConfig;
 
         // Validate the RPC caller context.
-        $this->validateMethodContext($context, array("role" => OMV_ROLE_ADMINISTRATOR));
+        $this->validateMethodContext($context, array(
+            "role" => OMV_ROLE_ADMINISTRATOR
+        ));
 
         // Validate the parameters of the RPC service method.
         $this->validateMethodParams(
             $params,
             '{
-                "type"       : "object",
-                "properties" : {
-                    "start"     : { "type" : "integer" },
-                    "limit"     : { ' . $GLOBALS["OMV_JSONSCHEMA_COUNTFIELD"] . ' },
-                    "sortfield" : { ' . $GLOBALS["OMV_JSONSCHEMA_SORTFIELD"] . ' },
-                    "sortdir"   : { ' . $GLOBALS["OMV_JSONSCHEMA_SORTDIR"] . ' }
+                "type": "object",
+                "properties": {
+                    "start": { "type": "integer" },
+                    "limit": { ' . $GLOBALS["OMV_JSONSCHEMA_COUNTFIELD"] . ' },
+                    "sortfield": { ' . $GLOBALS["OMV_JSONSCHEMA_SORTFIELD"] . ' },
+                    "sortdir": { ' . $GLOBALS["OMV_JSONSCHEMA_SORTDIR"] . ' }
                 }
             }'
         );
 
         // Get configuration data.
-        $objects = $xmlConfig->getList($this->getXPathFork());
+        $objects = $xmlConfig->getList($this->getForkXpath());
 
         if (is_null($objects)) {
-            throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, $this->getXPathFork());
+            throw new OMVException(OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED, $this->getForkXpath());
         }
 
         // Filter the result.
@@ -238,21 +265,21 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         $this->validateMethodParams(
             $params,
             '{
-                "type"       : "object",
-                "properties" : {
-                    "uuid" : { ' . $GLOBALS["OMV_JSONSCHEMA_UUID"] . ' }
+                "type": "object",
+                "properties": {
+                    "uuid": { ' . $GLOBALS["OMV_JSONSCHEMA_UUID"] . ' }
                 }
             }'
         );
 
         // Get the configuration object.
-        $xPath = sprintf("%s[uuid='%s']", $this->getXPathFork(), $params["uuid"]);
-        $object = $xmlConfig->get($xPath);
+        $xpath = sprintf("%s[uuid='%s']", $this->getForkXpath(), $params["uuid"]);
+        $object = $xmlConfig->get($xpath);
 
         if (is_null($object)) {
             throw new OMVException(
                 OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
-                $xPath
+                $xpath
             );
         }
 
@@ -272,11 +299,11 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         $this->validateMethodParams(
             $params,
             '{
-                "type"       : "object",
-                "properties" : {
-                    "uuid" : { ' . $GLOBALS["OMV_JSONSCHEMA_UUID_UNDEFINED"] . ' },
-                    "name" : { "type" : "string" },
-                    "fork" : { "type" : "string" }
+                "type": "object",
+                "properties": {
+                    "uuid": { ' . $GLOBALS["OMV_JSONSCHEMA_UUID_UNDEFINED"] . ' },
+                    "name": { "type": "string" },
+                    "fork": { "type": "string" }
                 }
             }'
         );
@@ -302,7 +329,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         if (empty($output)) {
             throw new OMVException(
                 OMVErrorMsg::E_EXEC_MISC,
-                "No branches found, check url"
+                "No branches found, check url."
             );
         }
 
@@ -313,13 +340,13 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             );
         }
 
-        // Prepare configuration data and add all branches found
+        // Prepare configuration data and add all branches found.
         $object = array(
-            "uuid"        => ($params["uuid"] == $GLOBALS["OMV_UUID_UNDEFINED"])
+            "uuid" => $params["uuid"] == $GLOBALS["OMV_UUID_UNDEFINED"]
                 ? OMVUtil::uuid() : $params["uuid"],
-            "name"        => $params["name"],
-            "fork"        => $params["fork"],
-            "branches"    => $output,
+            "name" => $params["name"],
+            "fork" => $params["fork"],
+            "branches" => $output,
         );
 
         // Set the configuration data.
@@ -328,14 +355,14 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         if ($params["uuid"] == $GLOBALS["OMV_UUID_UNDEFINED"]) {
             // Append object to configuration.
             $success = $xmlConfig->set(
-                $this->getXPathForks(),
+                $this->getForksXpath(),
                 array("fork" => $object)
             );
         } else {
             // Update existing configuration object.
-            $xPath = sprintf(
+            $xpath = sprintf(
                 "%s[uuid='%s']",
-                $this->getXPathFork(),
+                $this->getForkXpath(),
                 $params["uuid"]
             );
         }
@@ -344,7 +371,6 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             throw new OMVException(OMVErrorMsg::E_CONFIG_SET_OBJECT_FAILED);
         }
 
-        // Return the configuration object.
         return $object;
     }
 
@@ -361,29 +387,43 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         $this->validateMethodParams(
             $params,
             '{
-                "type"       : "object",
-                "properties" : {
-                    "uuid" : { ' . $GLOBALS["OMV_JSONSCHEMA_UUID"] . ' }
+                "type": "object",
+                "properties": {
+                    "uuid": { ' . $GLOBALS["OMV_JSONSCHEMA_UUID"] . ' }
                 }
             }'
         );
 
         // Delete the configuration object.
-        $xPath = sprintf("%s[uuid='%s']", $this->getXPathFork(), $params["uuid"]);
+        $xpath = sprintf("%s[uuid='%s']", $this->getForkXpath(), $params["uuid"]);
 
-        return $this->deleteConfigObjectByPath($xPath);
+        return $this->deleteConfigObjectByPath($xpath);
     }
 
     public function doBackup($params, $context)
     {
-        global $xmlConfig;
+        // Validate the RPC caller context.
+        $this->validateMethodContext($context, array(
+            "role" => OMV_ROLE_ADMINISTRATOR
+        ));
+
+        // Validate the parameters of the RPC service method.
+        $this->validateMethodParams(
+            $params,
+            '{
+                "type": "object",
+                "properties": {
+                    "sharedfolderref": { ' . $GLOBALS["OMV_JSONSCHEMA_UUID"] . ' }
+                }
+            }'
+        );
 
         // Couchpotato needs to have run once to generate its
-        // settings. Check if this is true
+        // settings. Check if this is true.
         if (!file_exists($this->couchpotatoSettingsFile)) {
             throw new OMVException(
                 OMVErrorMsg::E_EXEC_MISC,
-                "No settings folder found!"
+                "No settings directory found."
             );
         }
 
@@ -411,9 +451,11 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
                 $bgOutputFilename
             );
 
-            // Get the configuration object.
-            $xPath = sprintf("%s/path", $this->getXPath());
-            $backupPath = $xmlConfig->get($xPath);
+            $backupPath = sprintf(
+                "%s%scouchpotato.tar.gz",
+                $this->getSharedFolderPathByUuid($params["sharedfolderref"]),
+                DIRECTORY_SEPARATOR
+            );
 
             $cmd = sprintf(
                 "tar -zcvPf %s %s 2>&1",
@@ -432,21 +474,37 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
 
     public function doRestore($params, $context)
     {
-        global $xmlConfig;
+        // Validate the RPC caller context.
+        $this->validateMethodContext($context, array(
+            "role" => OMV_ROLE_ADMINISTRATOR
+        ));
+
+        // Validate the parameters of the RPC service method.
+        $this->validateMethodParams(
+            $params,
+            '{
+                "type": "object",
+                "properties": {
+                    "sharedfolderref": { ' . $GLOBALS["OMV_JSONSCHEMA_UUID"] . ' }
+                }
+            }'
+        );
 
         // Validate the RPC caller context.
         $this->validateMethodContext($context, array(
             "role" => OMV_ROLE_ADMINISTRATOR
         ));
 
-        // Get the configuration object.
-        $xPath = sprintf("%s/path", $this->getXPath());
-        $backupPath = $xmlConfig->get($xPath);
+        $backupPath = sprintf(
+            "%s%scouchpotato.tar.gz",
+            $this->getSharedFolderPathByUuid($params["sharedfolderref"]),
+            DIRECTORY_SEPARATOR
+        );
 
         if (is_null($backupPath)) {
             throw new OMVException(
                 OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
-                $xPath
+                $xpath
             );
         }
 
@@ -462,10 +520,10 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
                 return $bgStatusFilename;
             }
 
-            // Delete current settings folder
+            // Delete current settings folder.
             rmdir($this->couchpotatoSettingsDir);
 
-            // Get the Couchpotato module
+            // Get the Couchpotato module.
             $moduleMgr = &OMVModuleMgr::getInstance();
             $couchpotatoModule = $moduleMgr->getModule($this->getName());
 
@@ -495,46 +553,22 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         }
     }
 
-    public function enumerateRepos($params, $context)
+    private function getSharedFolderPathByUuid($uuid)
     {
         global $xmlConfig;
 
-        $this->validateMethodContext($context, array(
-            "role" => OMV_ROLE_ADMINISTRATOR
-        ));
+        $xpath = sprintf("//system/shares/sharedfolder[uuid='%s']", $uuid);
+        $sharedFolder = $xmlConfig->get($xpath);
+        $sharedFolderRelDirPath = $sharedFolder["reldirpath"];
 
-        // Get configuration data.
-        $userRepos = $xmlConfig->getList($this->getXPathFork());
-
-        if (is_null($userRepos)) {
-            throw new OMVException(
-                OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
-                $this->getXPathFork()
-            );
-        }
-
-        // Add default repos and their branches. Do it here so users can't
-        // delete them.
-        $defaultRepos = array(
-            array(
-                "uuid" => "11111111-2222-3333-4444-555555555555",
-                "name" => "Main repository",
-                "fork" => "https://github.com/RuudBurger/CouchPotatoServer.git",
-                "branches" => array(
-                    "3d",
-                    "desktop",
-                    "develop",
-                    "feature/redesign",
-                    "master",
-                    "tv",
-                    "tv_old"
-                )
-            ),
+        $xpath = sprintf(
+            "//system/fstab/mntent[uuid='%s']",
+            $sharedFolder["mntentref"]
         );
+        $mountPoint = $xmlConfig->get($xpath);
+        $mountPointDir = $mountPoint["dir"];
 
-        $repos = array_merge($defaultRepos, $userRepos);
-
-        return $repos;
+        return $mountPointDir . DIRECTORY_SEPARATOR . $sharedFolderRelDirPath;
     }
 }
 

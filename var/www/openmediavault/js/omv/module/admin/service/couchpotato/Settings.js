@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2013 OpenMediaVault Plugin Developers
+ * Copyright (C) 2013-2015 OpenMediaVault Plugin Developers
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,24 +20,29 @@
 // require("js/omv/data/Store.js")
 // require("js/omv/data/Model.js")
 // require("js/omv/form/plugin/LinkedFields.js")
+// require("js/omv/module/admin/service/couchpotato/Backup.js")
 
 Ext.define("OMV.module.admin.service.couchpotato.Settings", {
-    extend   : "OMV.workspace.form.Panel",
-    requires : [
+    extend: "OMV.workspace.form.Panel",
+    requires: [
         "OMV.data.Model",
-        "OMV.data.Store"
+        "OMV.data.Store",
+        "OMV.module.admin.service.couchpotato.Backup"
     ],
 
-    initComponent : function () {
-        var me = this;
+    rpcService: "Couchpotato",
+    rpcGetMethod: "getSettings",
+    rpcSetMethod: "setSettings",
 
-        me.on("load", function () {
-            var checked = me.findField("enable").checked;
-            var showtab = me.findField("showtab").checked;
-            var parent = me.up("tabpanel");
+    initComponent: function() {
+        this.on("load", function() {
+            var checked = this.findField("enable").checked;
+            var showtab = this.findField("show_tab").checked;
+            var parent = this.up("tabpanel");
 
-            if (!parent)
+            if (!parent) {
                 return;
+            }
 
             var managementPanel = parent.down("panel[title=" + _("Web Interface") + "]");
 
@@ -45,252 +50,157 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                 checked ? managementPanel.enable() : managementPanel.disable();
                 showtab ? managementPanel.tab.show() : managementPanel.tab.hide();
             }
-        });
+        }, this);
 
-        me.callParent(arguments);
+        this.callParent(arguments);
     },
 
-    rpcService   : "Couchpotato",
-    rpcGetMethod : "getSettings",
-    rpcSetMethod : "setSettings",
+    getButtonItems: function() {
+        var items = this.callParent(arguments);
 
-    plugins      : [{
-        ptype        : "linkedfields",
-        correlations : [{
-            name       : [
-                "port",
-            ],
-            properties : "!show"
-        }]
-    }],
+        items.push({
+            id: this.getId() + "-show",
+            xtype: "button",
+            text: _("Show"),
+            icon: "images/search.png",
+            iconCls: Ext.baseCSSPrefix + "btn-icon-16x16",
+            scope: this,
+            handler: function() {
+                var port = this.getForm().findField("port").getValue();
+                var link = "http://" + location.hostname + ":" + port + "/";
 
-    getFormItems : function() {
-        var me = this;
+                window.open(link, "_blank");
+            }
+        }, {
+            id: this.getId() + "-backup",
+            xtype: "button",
+            text: _("Backup/restore"),
+            icon: "images/wrench.png",
+            iconCls: Ext.baseCSSPrefix + "btn-icon-16x16",
+            scope: this,
+            handler: function() {
+                Ext.create("OMV.module.admin.service.couchpotato.Backup").show();
+            }
+        });
 
+        return items;
+    },
+
+    getFormItems: function() {
         return [{
-            xtype    : "fieldset",
-            title    : "General settings",
-            defaults : {
-                labelSeparator : ""
+            xtype: "fieldset",
+            title: "General settings",
+            defaults: {
+                labelSeparator: ""
             },
-            items : [{
-                xtype      : "checkbox",
-                name       : "enable",
-                fieldLabel : _("Enable"),
-                checked    : false
-            },{
-                xtype      : "checkbox",
-                name       : "showtab",
-                fieldLabel : _("Show Tab"),
-                boxLabel   : _("Show tab containing Couchpotato web interface frame."),
-                checked    : false
-            },{
-                xtype      : "combo",
-                name       : "repo",
-                fieldLabel : _("Repository"),
-                allowBlank : false,
-                editable   : false,
-                queryMode  : "local",
-                store      : Ext.create("OMV.data.Store", {
-                    autoLoad : true,
-                    model    : OMV.data.Model.createImplicit({
-                        idProperty : "name",
-                        fields     : [{
-                            name : "uuid",
-                            type : "string"
-                        },{
-                            name : "name",
-                            type : "string"
-                        },{
-                            name : "fork",
-                            type : "string"
-                        },{
-                            name : "branches",
-                            type : "array"
+            items: [{
+                xtype: "checkbox",
+                name: "enable",
+                fieldLabel: _("Enable"),
+                checked: false
+            }, {
+                // The port value is a readonly value fetched from the
+                // CouchPotato configuration.
+                xtype: "hiddenfield",
+                name: "port",
+                submitValue: false,
+                value: 5050
+            }, {
+                xtype: "combo",
+                name: "repo",
+                fieldLabel: _("Repository"),
+                store: Ext.create("OMV.data.Store", {
+                    autoLoad: true,
+                    model: OMV.data.Model.createImplicit({
+                        idProperty: "name",
+                        fields: [{
+                            name: "uuid",
+                            type: "string"
+                        }, {
+                            name: "name",
+                            type: "string"
+                        }, {
+                            name: "fork",
+                            type: "string"
+                        }, {
+                            name: "branches",
+                            type: "array"
                         }],
-                        proxy : {
-                            type    : "rpc",
-                            rpcData : {
-                                service : "Couchpotato",
-                                method  : "enumerateRepos"
+                        proxy: {
+                            type: "rpc",
+                            rpcData: {
+                                service: "Couchpotato",
+                                method: "enumerateRepos"
                             },
-                            appendSortParams : false
+                            appendSortParams: false
                         }
                     })
                 }),
-                displayField  : "fork",
-                valueField    : "fork",
-                triggerAction : "all",
-                selectOnFocus : true,
-                plugins       : [{
-                    ptype : "fieldinfo",
-                    text  : _("The repository you want to use. If changing from a current repository, setting will be wiped.")
-                }],
-                listeners : {
-                    select : function(combo, records) {
-                        var record = records.pop();
-                        me.updateBranchCombo(record.get("branches"));
-                    },
-                    change : function(combo, value) {
-                        var record = combo.store.findRecord("fork", value);
-                        me.updateBranchCombo(record.get("branches"));
-                    }
-                }
-            },{
-                xtype         : "combo",
-                name          : "branch",
-                fieldLabel    : _("Branch"),
-                queryMode     : "local",
-                store         : [],
-                allowBlank    : false,
-                editable      : false,
-                triggerAction : "all",
-                plugins       : [{
-                    ptype : "fieldinfo",
-                    text  : _("The branch you want to use. choose master if you don't know whats involed.")
-                }]
-            },{
-                xtype: "numberfield",
-                name: "port",
-                fieldLabel: _("Port"),
-                vtype: "port",
-                minValue: 1,
-                maxValue: 65535,
-                allowDecimals: false,
                 allowBlank: false,
-                value: 5050
-            },{
-                xtype   : "button",
-                name    : "opencouchpotato",
-                text    : _("Couchpotato Web Interface"),
-                scope   : this,
-                handler : function() {
-                    var me = this;
-                    var port = me.getForm().findField("port").getValue();
-                    var link = "http://" + location.hostname + ":" + port + "/";
-                    window.open(link, "_blank");
-                },
-                margin : "0 0 5 0"
-            }]
-                },{
-                        xtype: "fieldset",
-                        title: _("Backup User Settings"),
-                        fieldDefaults: {
-                                labelSeparator: ""
-                        },
-                        items : [{
-                xtype         : "combo",
-                name          : "mntentref",
-                fieldLabel    : _("Volume"),
-                emptyText     : _("Select a volume ..."),
-                allowBlank    : false,
-                allowNone     : false,
-                editable      : false,
-                triggerAction : "all",
-                displayField  : "description",
-                valueField    : "uuid",
-                store         : Ext.create("OMV.data.Store", {
-                    autoLoad : true,
-                    model    : OMV.data.Model.createImplicit({
-                        idProperty : "uuid",
-                        fields     : [
-                            { name : "uuid", type : "string" },
-                            { name : "devicefile", type : "string" },
-                            { name : "description", type : "string" }
-                        ]
-                    }),
-                    proxy : {
-                        type : "rpc",
-                        rpcData : {
-                            service : "ShareMgmt",
-                            method  : "getCandidates"
-                        },
-                        appendSortParams : false
+                displayField: "fork",
+                editable: false,
+                listeners: {
+                    scope: this,
+                    change: function(combo, value) {
+                        var record = combo.store.findRecord("fork", value);
+
+                        this.updateBranchCombo(record.get("branches"));
                     },
-                    sorters : [{
-                        direction : "ASC",
-                        property  : "devicefile"
-                    }]
-                })
-            },{
-                xtype      : "textfield",
-                name       : "path",
-                fieldLabel : _("Path"),
-                allowNone  : true,
-                readOnly   : true
-            },{
-                xtype   : "button",
-                name    : "backup",
-                text    : _("Backup"),
-                scope   : this,
-                handler : Ext.Function.bind(me.onBackupButton, me, [ me ]),
-                margin  : "5 0 0 0"
-            },{
-                border : false,
-                html   : "<ul><li>" + _("Backup settings to a data drive.") + "</li></ul>"
-            },{
-                xtype   : "button",
-                name    : "restore",
-                text    : _("Restore"),
-                scope   : this,
-                handler : Ext.Function.bind(me.onRestoreButton, me, [ me ]),
-                margin  : "5 0 0 0"
-            },{
-                border : false,
-                html   : "<ul><li>" + _("Restore settings from a data drive.") + "</li></ul>"
+                    select: function(combo, records) {
+                        var record = records.pop();
+
+                        this.updateBranchCombo(record.get("branches"));
+                    }
+                },
+                queryMode: "local",
+                selectOnFocus: true,
+                triggerAction: "all",
+                valueField: "fork",
+                plugins: [{
+                    ptype: "fieldinfo",
+                    text: _("The repository you want to use. If changing from a current repository, setting will be wiped.")
+                }]
+            }, {
+                xtype: "combo",
+                name: "branch",
+                fieldLabel: _("Branch"),
+                allowBlank: false,
+                editable: false,
+                queryMode: "local",
+                store: [],
+                triggerAction: "all",
+                plugins: [{
+                    ptype: "fieldinfo",
+                    text: _("The branch you want to use. choose master if you don't know what's involved.")
+                }]
+            }, {
+                xtype: "checkbox",
+                name: "show_tab",
+                fieldLabel: _("Show Tab"),
+                boxLabel: _("Show tab containing Couchpotato web interface frame."),
+                checked: false
             }]
         }];
     },
-	
-	onBackupButton: function() {
-        var me = this;
-        me.doSubmit();
-        Ext.create("OMV.window.Execute", {
-            title      : _("Backup"),
-            rpcService : "Couchpotato",
-            rpcMethod  : "doBackup",
-            listeners  : {
-                scope     : me,
-                exception : function(wnd, error) {
-                    OMV.MessageBox.error(null, error);
-                }
-            }
-        }).show();
-    },
 
-	onRestoreButton: function() {
-        var me = this;
-        me.doSubmit();
-        Ext.create("OMV.window.Execute", {
-            title      : _("Restore"),
-            rpcService : "Couchpotato",
-            rpcMethod  : "doRestore",
-            listeners  : {
-                scope     : me,
-                exception : function(wnd, error) {
-                    OMV.MessageBox.error(null, error);
-                }
-            }
-        }).show();
-    },
-
-    updateBranchCombo : function(values) {
-        var me = this;
-        var branchCombo = me.findField("branch");
+    updateBranchCombo: function(values) {
+        var branchCombo = this.findField("branch");
 
         branchCombo.store.removeAll();
 
         for (var i = 0; i < values.length; i++) {
             // TODO: Look over use of field1
-            branchCombo.store.add({ field1: values[i] });
+            branchCombo.store.add({
+                field1: values[i]
+            });
         }
     }
 });
 
 OMV.WorkspaceManager.registerPanel({
-    id        : "settings",
-    path      : "/service/couchpotato",
-    text      : _("Settings"),
-    position  : 10,
-    className : "OMV.module.admin.service.couchpotato.Settings"
+    id: "settings",
+    path: "/service/couchpotato",
+    text: _("Settings"),
+    position: 10,
+    className: "OMV.module.admin.service.couchpotato.Settings"
 });

@@ -12,24 +12,67 @@
 # Description:       starts instance of CouchPotato using start-stop-daemon
 ### END INIT INFO
 
-set -e
+# Check for existance of defaults file
+# and utilze if available
+if [ -f /etc/default/couchpotato ]; then
+    . /etc/default/couchpotato
+else
+    echo "/etc/default/couchpotato not found using default settings.";
+fi
 
-############### BEGIN EDIT ME ################
-RUN_AS=couchpotato
-RUN_GRP=users
-APP_PATH=/opt/couchpotato
-DAEMON=/usr/bin/python
-PID_FILE=/var/run/couchpotato/couchpotato.pid
-PID_PATH=$(dirname $PID_FILE)
-NAME=couchpotato
-DESC=couchpotato
-DATA_DIR=/home/couchpotato/.couchpotato
-EXTRA_DAEMON_OPTS=" --data_dir=${DATA_DIR}"
-DAEMON_OPTS=" $APP_PATH/CouchPotato.py --quiet --daemon --pid_file=${PID_FILE} ${EXTRA_DAEMON_OPTS}"
-############### END EDIT ME ##################
-
-# Get lsb functions
 . /lib/lsb/init-functions
+
+# Script name
+NAME=couchpotato
+
+# App name
+DESC=CouchPotato
+
+## Don't edit this file
+## Edit user configuation in /etc/default/couchpotato to change
+##
+## CP_USER= #$RUN_AS, username to run couchpotato under, the default is couchpotato
+## CP_HOME= #$APP_PATH, the location of couchpotato.py, the default is /opt/couchpotato
+## CP_DATA= #$DATA_DIR, the location of couchpotato.db, cache, logs, the default is /var/opt/couchpotato
+## CP_PIDFILE= #$PID_FILE, the location of couchpotato.pid, the default is /var/run/couchpotato/couchpotato.pid
+## PYTHON_BIN= #$DAEMON, the location of the python binary, the default is /usr/bin/python
+## CP_OPTS= #$EXTRA_DAEMON_OPTS, extra cli option for couchpotato, i.e. " --config_file=/home/couchpotato/couchpotato.ini"
+## SSD_OPTS= #$EXTRA_SSD_OPTS, extra start-stop-daemon option like " --group=users"
+##
+## EXAMPLE if want to run as different user
+## add CP_USER=username to /etc/default/couchpotato
+## otherwise default couchpotato is used
+
+# Run CP as username
+RUN_AS=${CP_USER-couchpotato}
+
+# Path to app
+# CP_HOME=path_to_app_CouchPotato.py
+APP_PATH=${CP_HOME-/opt/couchpotato/}
+
+# Data directory where couchpotato.db, cache and logs are stored
+DATA_DIR=${CP_DATA-/var/opt/couchpotato}
+
+# Path to store PID file
+PID_FILE=${CP_PIDFILE-/var/run/couchpotato/couchpotato.pid}
+
+# path to python bin
+DAEMON=${PYTHON_BIN-/usr/bin/python}
+
+# Extra daemon option like: CP_OPTS=" --config=/home/couchpotato/couchpotato.ini"
+EXTRA_DAEMON_OPTS=${CP_OPTS-}
+
+# Extra start-stop-daemon option like START_OPTS=" --group=users"
+EXTRA_SSD_OPTS=${SSD_OPTS-}
+
+
+PID_PATH=`dirname $PID_FILE`
+DAEMON_OPTS=" CouchPotato.py --quiet --daemon --pid_file=${PID_FILE} --data_dir=${DATA_DIR} ${EXTRA_DAEMON_OPTS}"
+
+
+test -x $DAEMON || exit 0
+
+set -e
 
 # Create PID directory if not exist and ensure the CouchPotato user can write to it
 if [ ! -d $PID_PATH ]; then
@@ -37,21 +80,10 @@ if [ ! -d $PID_PATH ]; then
     chown $RUN_AS $PID_PATH
 fi
 
-# Create DATA_DIR directory if not exist and ensure the CouchPotato user can write to it
 if [ ! -d $DATA_DIR ]; then
     mkdir -p $DATA_DIR
     chown $RUN_AS $DATA_DIR
 fi
-
-# Create logs directory if not exist and ensure the CouchPotato user can write to it
-if [ ! -d $DATA_DIR/logs ]; then
-    mkdir -p $DATA_DIR/logs
-    chown $RUN_AS $DATA_DIR/logs
-fi
-
-touch /home/couchpotato/.couchpotato/logs/CouchPotato.log
-chown $RUN_AS /home/couchpotato/.couchpotato/logs/CouchPotato.log
-chmod 775 -R /home/couchpotato/.couchpotato/logs
 
 if [ -e $PID_FILE ]; then
     PID=`cat $PID_FILE`
@@ -61,69 +93,30 @@ if [ -e $PID_FILE ]; then
     fi
 fi
 
-if [ ! -f $DATA_DIR/settings.conf ]; then
-    echo "[core]
-data_dir = /home/couchpotato/.couchpotato
-permission_folder = 0777
-group = users
-port = 5050
-show_wizard = 1
-launch_browser = 0
-permission_file = 0777
-
-[updater]
-git_command = git" > $DATA_DIR/settings.conf
-    chown $RUN_AS $PID_PATH
-    chown $RUN_AS $DATA_DIR/settings.conf
-    chmod 775 $DATA_DIR/settings.conf
-fi
-
-is_running() {
-    if [ ! -e $PID_FILE ]; then
-        return 1
-    fi
-    return 0
-}
-
-start() {
-  if ! is_running; then
-    chmod 775 /home/couchpotato/.couchpotato -R
-    echo "Starting $DESC"
-    sudo -u $RUN_AS $DAEMON $DAEMON_OPTS &> /dev/null 2>&1
-  else
-    echo "$DESC is running"
-  fi
-}
-
-stop() {
-  if is_running; then
-    echo "Stopping $DESC"
-    start-stop-daemon --stop --pidfile $PID_FILE --retry 15
-  fi
-}
-
-restart() {
-  if is_running; then
-    stop
-  fi
-  echo "Restarting $DESC"
-  start
-}
-
 case "$1" in
   start)
-    start
-    ;;
+        echo "Starting $DESC"
+        start-stop-daemon -d $APP_PATH -c $RUN_AS $EXTRA_SSD_OPTS --start --pidfile $PID_FILE --exec $DAEMON -- $DAEMON_OPTS
+        ;;
   stop)
-    stop
-    ;;
-  restart)
-    stop
-    start
-    ;;
+        echo "Stopping $DESC"
+        start-stop-daemon --stop --pidfile $PID_FILE --retry 15 --oknodo
+        ;;
+
+  restart|force-reload)
+        echo "Restarting $DESC"
+        start-stop-daemon --stop --pidfile $PID_FILE --retry 15 --oknodo
+        start-stop-daemon -d $APP_PATH -c $RUN_AS $EXTRA_SSD_OPTS --start --pidfile $PID_FILE --exec $DAEMON -- $DAEMON_OPTS
+        ;;
+
   status)
-    status_of_proc -p $PID_FILE "$DAEMON" "$NAME"
-    ;;
+       status_of_proc -p $PID_FILE "$DAEMON" "$NAME"
+        ;;
   *)
-    echo "Usage: $0 {start|stop|restart|uninstall}"
+        N=/etc/init.d/$NAME
+        echo "Usage: $N {start|stop|restart|force-reload|status}" >&2
+        exit 1
+        ;;
 esac
+
+exit 0

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2013-2014 OpenMediaVault Plugin Developers
+ * Copyright (C) 2013-2015 OpenMediaVault Plugin Developers
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,35 +21,52 @@ require_once "openmediavault/config.inc";
 require_once "openmediavault/error.inc";
 require_once "openmediavault/initscript.inc";
 require_once "openmediavault/module.inc";
-require_once "openmediavault/util.inc";
 
 class OMVModuleCouchpotato extends OMVModuleServiceAbstract implements
     OMVINotifyListener,
     OMVIModuleServiceStatus
 {
-    private function getPluginName()
-    {
-        return strtolower($this->getName());
-    }
-
     private function getEventMessagePath()
     {
-        return sprintf("org.openmediavault.service.%s", $this->getPluginName());
+        return sprintf("org.openmediavault.service.couchpotato");
     }
 
-    private function getXPath()
+    private function getXpath()
     {
-        return sprintf("//services/%s", $this->getPluginName());
+        return "/config/services/couchpotato";
     }
 
     public function getName()
     {
-        return "Couchpotato";
+        return "couchpotato";
+    }
+
+    public function getStatus()
+    {
+        global $xmlConfig;
+
+        $object = $xmlConfig->get($this->getXpath());
+
+        if (is_null($object)) {
+            throw new OMVException(
+                OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
+                $this->getXpath()
+            );
+        }
+
+        $initd = new OMVSysVInitScript($this->getName());
+
+        return array(
+            "name" => $this->getName(),
+            "title" => gettext("CouchPotato"),
+            "enabled" => boolval($object["enable"]),
+            "running" => $initd->status() == 0
+        );
     }
 
     public function applyConfig()
     {
-        $cmd = sprintf("omv-mkconf %s 2>&1", $this->getPluginName());
+        $cmd = sprintf("omv-mkconf %s 2>&1", $this->getName());
 
         if (0 !== $this->exec($cmd, $output)) {
             throw new OMVException(
@@ -60,39 +77,16 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract implements
         }
     }
 
-    public function getStatus()
-    {
-        global $xmlConfig;
-
-        $object = $xmlConfig->get($this->getXPath());
-
-        if (is_null($object)) {
-            throw new OMVException(
-                OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
-                $this->getXPath()
-            );
-        }
-
-        $initd = new OMVSysVInitScript($this->getPluginName());
-
-        return array(
-            "name"    => $this->getPluginName(),
-            "title"   => gettext($this->getName()),
-            "enabled" => boolval($object["enable"]),
-            "running" => $initd->status() == 0
-        );
-    }
-
     public function startService()
     {
         global $xmlConfig;
 
-        $object = $xmlConfig->get($this->getXPath());
+        $object = $xmlConfig->get($this->getXpath());
 
         if (is_null($object)) {
             throw new OMVException(
                 OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
-                $this->getXPath()
+                $this->getXpath()
             );
         }
 
@@ -100,13 +94,13 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract implements
             return;
         }
 
-        $initd = new OMVSysVInitScript($this->getPluginName(), true);
+        $initd = new OMVSysVInitScript($this->getName(), true);
         $initd->exec();
     }
 
     public function stopService()
     {
-        $initd = new OMVSysVInitScript($this->getPluginName());
+        $initd = new OMVSysVInitScript($this->getname());
         $initd->exec();
     }
 

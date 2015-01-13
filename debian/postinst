@@ -5,34 +5,34 @@ set -e
 . /etc/default/openmediavault
 . /usr/share/openmediavault/scripts/helper-functions
 
+OMV_COUCHPOTATO_APP_PATH="/opt/couchpotato"
+OMV_COUCHPOTATO_DATA_PATH="/var/opt/couchpotato"
+OMV_COUCHPOTATO_USER="couchpotato"
+
 case "$1" in
     configure)
+        SERVICE_XPATH_NAME="couchpotato"
+        SERVICE_XPATH="/config/services/${SERVICE_XPATH_NAME}"
+
+        if ! omv_config_exists "${SERVICE_XPATH}"; then
+            omv_config_add_element "/config/services" "${SERVICE_XPATH_NAME}"
+            omv_config_add_element "${SERVICE_XPATH}" "enable" "0"
+            omv_config_add_element "${SERVICE_XPATH}" "repo"
+            omv_config_add_element "${SERVICE_XPATH}" "branch"
+            omv_config_add_element "${SERVICE_XPATH}" "show_tab" "0"
+        fi
+
         if ! getent passwd couchpotato >/dev/null 2>&1; then
-            echo "Adding couchpotato user..."
-            useradd --create-home --groups users --no-user-group --shell /usr/sbin/nologin couchpotato
-            insserv -d couchpotato
-        else
-            echo "couchpotato user already exists."
+            adduser --quiet \
+                    --system \
+                    --group \
+                    --no-create-home \
+                    --disabled-password \
+                    $OMV_COUCHPOTATO_USER
         fi
 
-        if [ -e /var/run/couchpotato ]; then
-            echo "Cleaning old pid file..."
-            rm -Rf /var/run/couchpotato
-        fi
-
-        chmod 775 /opt
-        chown root:users /opt
-
-        if ! omv_config_exists "/config/services/couchpotato"; then
-            echo "Initial configuration."
-            object="<enable>0</enable>"
-            object="${object}<showtab>0</showtab>"
-            object="${object}<branch></branch>"
-            object="${object}<repo></repo>"
-            omv_config_add_element "/config/services" "couchpotato" "${object}" true
-        fi
-        
-        omv_install_fixperms
+        chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_USER $OMV_COUCHPOTATO_APP_PATH
+        chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_USER $OMV_COUCHPOTATO_DATA_PATH
 
         # Activate package triggers. These triggers are only set during the
         # package installation.
@@ -48,5 +48,7 @@ case "$1" in
         exit 1
     ;;
 esac
+
+#DEBHELPER#
 
 exit 0
