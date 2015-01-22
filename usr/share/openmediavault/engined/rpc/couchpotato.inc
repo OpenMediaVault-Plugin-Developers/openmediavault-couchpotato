@@ -95,8 +95,16 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
                 INI_SCANNER_RAW
             );
 
-            if (!empty($config["core"]["port"])) {
-                $port = $config["core"]["port"];
+            $coreConfigKey = "core";
+
+            // This seems to vary between version. In 5.5 brackets
+            // don't seem necessary.
+            if (PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 4) {
+                $coreConfigKey = "[core]";
+            }
+
+            if (!empty($config[$coreConfigKey]["port"])) {
+                $port = $config[$coreConfigKey]["port"];
             }
         }
 
