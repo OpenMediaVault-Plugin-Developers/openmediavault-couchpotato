@@ -115,7 +115,6 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         $object["enable"] = boolval($object["enable"]);
         $object["show_tab"] = boolval($object["show_tab"]);
 
-
         // Remove useless fields from the result object.
         unset($object["forks"]);
 
@@ -143,7 +142,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             }'
         );
 
-        // Get existing configuration object
+        // Get existing configuration object.
         $oldObject = $xmlConfig->get($this->getXpath());
 
         if (is_null($oldObject)) {
@@ -317,7 +316,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         );
 
         // Check if valid fork. A valid fork should start with
-        // either http(s):// or git://
+        // either http(s):// or git://.
         if (substr($params["fork"], 0, 4) !== "http" &&
             substr($params["fork"], 0, 3) !== "git"
         ) {
