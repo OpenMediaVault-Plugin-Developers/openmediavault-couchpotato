@@ -1,4 +1,4 @@
-openmediavault-couchpotato (1.0.4) unstable; urgency=low
+openmediavault-couchpotato (1.1) stable; urgency=low
 
   * Use init scripts provided by CouchPotato
   * Make the user couchpotato a system user

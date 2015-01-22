@@ -9,6 +9,21 @@ OMV_COUCHPOTATO_APP_PATH="/opt/couchpotato"
 OMV_COUCHPOTATO_DATA_PATH="/var/opt/couchpotato"
 OMV_COUCHPOTATO_USER="couchpotato"
 
+migrate_data_location()
+{
+    old_data_path="/home/couchpotato/.couchpotato"
+
+    if [ -d /home/couchpotato/.couchpotato ]; then
+        # Migrate old data to new location.
+        cp -ra /home/couchpotato/.couchpotato/* $OMV_COUCHPOTATO_DATA_PATH
+
+        # Remove couchpotato home directory.
+        if [ -d /home/couchpotato ]; then
+            rm -rf /home/couchpotato
+        fi
+    fi
+}
+
 case "$1" in
     configure)
         SERVICE_XPATH_NAME="couchpotato"
@@ -33,6 +48,10 @@ case "$1" in
 
         chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_USER $OMV_COUCHPOTATO_APP_PATH
         chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_USER $OMV_COUCHPOTATO_DATA_PATH
+
+        if dpkg --compare-versions "${2}" lt-nl "1.1"; then
+            migrate_data_location
+        fi
 
         # Activate package triggers. These triggers are only set during the
         # package installation.
