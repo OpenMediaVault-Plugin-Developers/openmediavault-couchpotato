@@ -15,7 +15,7 @@ migrate_data_location()
 
     if [ -d /home/couchpotato/.couchpotato ]; then
         # Migrate old data to new location.
-        cp -ra /home/couchpotato/.couchpotato/* $OMV_COUCHPOTATO_DATA_PATH
+        su -s /bin/sh -c "cp -ra /home/couchpotato/.couchpotato/* ${OMV_COUCHPOTATO_DATA_PATH}" $OMV_COUCHPOTATO_USER
 
         # Remove couchpotato home directory.
         if [ -d /home/couchpotato ]; then
