@@ -28,7 +28,7 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract implements
 {
     private function getEventMessagePath()
     {
-        return sprintf("org.openmediavault.service.couchpotato");
+        return "org.openmediavault.service.couchpotato";
     }
 
     private function getXpath()
