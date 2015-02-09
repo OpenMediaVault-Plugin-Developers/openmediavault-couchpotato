@@ -152,6 +152,16 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             );
         }
 
+        if ($params["showtab"] == true) {
+            if (! file_exists("/var/www/openmediavault/js/omv/module/admin/service/media/Media.js'));
+                throw new OMVException(
+                    OMVErrorMsg::E_MISC_FAILURE,
+                    "Install links and add an entry to use the web tab."
+                );
+            }
+        }
+        //Checks finished.
+
         $object = array(
             "enable" => array_boolval($params, "enable"),
             "branch" => $params["branch"],
