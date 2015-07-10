@@ -32,9 +32,12 @@ case "$1" in
         if ! omv_config_exists "${SERVICE_XPATH}"; then
             omv_config_add_element "/config/services" "${SERVICE_XPATH_NAME}"
             omv_config_add_element "${SERVICE_XPATH}" "enable" "0"
-            omv_config_add_element "${SERVICE_XPATH}" "repo"
-            omv_config_add_element "${SERVICE_XPATH}" "branch"
+            omv_config_add_element "${SERVICE_XPATH}" "repo" "Please choose a repository"
+            omv_config_add_element "${SERVICE_XPATH}" "branch" "Please choose a branch"
             omv_config_add_element "${SERVICE_XPATH}" "show_tab" "0"
+            omv_config_add_element "${SERVICE_XPATH}" "username" "couchpotato"
+            omv_config_add_element "${SERVICE_XPATH}" "usersgrp" "0"
+            omv_config_add_element "${SERVICE_XPATH}" "umask"
         fi
 
         if ! getent passwd couchpotato >/dev/null 2>&1; then

@@ -20,14 +20,14 @@
 // require("js/omv/data/Store.js")
 // require("js/omv/data/Model.js")
 // require("js/omv/form/plugin/LinkedFields.js")
-// require("js/omv/module/admin/service/couchpotato/Backup.js")
+// require("js/omv/form/field/UserComboBox.js")
 
 Ext.define("OMV.module.admin.service.couchpotato.Settings", {
     extend: "OMV.workspace.form.Panel",
     requires: [
         "OMV.data.Model",
         "OMV.data.Store",
-        "OMV.module.admin.service.couchpotato.Backup"
+        "OMV.form.field.UserComboBox"
     ],
 
     rpcService: "Couchpotato",
@@ -74,13 +74,19 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
         }, {
             id: this.getId() + "-backup",
             xtype: "button",
-            text: _("Backup/restore"),
+            text: _("Backup"),
             icon: "images/wrench.png",
             iconCls: Ext.baseCSSPrefix + "btn-icon-16x16",
             scope: this,
-            handler: function() {
-                Ext.create("OMV.module.admin.service.couchpotato.Backup").show();
-            }
+            handler: Ext.Function.bind(this.onBackupButton, this)
+        }, {
+            id: this.getId() + "-restore",
+            xtype: "button",
+            text: _("Restore"),
+            icon: "images/wrench.png",
+            iconCls: Ext.baseCSSPrefix + "btn-icon-16x16",
+            scope: this,
+            handler: Ext.Function.bind(this.onRestoreButton, this),
         });
 
         return items;
@@ -180,6 +186,35 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                 boxLabel: _("Show tab containing Couchpotato web interface frame."),
                 checked: false
             }]
+                },{
+            xtype    : "fieldset",
+            title    : "Custom user settings",
+            defaults : {
+                labelSeparator : ""
+            },
+            items : [{
+                xtype      : "usercombo",
+                name       : "username",
+                fieldLabel : _("Run as User"),
+                value      : "couchpotato"
+            }, {
+                xtype      : "checkbox",
+                name       : "usersgrp",
+                fieldLabel : _("Users group"),
+                boxLabel   : _("Will run CP under the users group. Not recommended."),
+                checked    : false
+            }, {
+                xtype: "numberfield",
+                name: "umask",
+                fieldLabel: _("Umask"),
+                allowDecimals: false,
+                allowNegative: false,
+                allowBlank: true,
+                plugins: [{
+                    ptype: "fieldinfo",
+                    text: _("Sets transmission's file mode creation mask.")
+                }]
+            }]
         }];
     },
 
@@ -194,6 +229,24 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                 field1: values[i]
             });
         }
+    },
+
+    onBackupButton: function() {
+        OMV.Download.request("Couchpotato", "downloadBackup");
+    },
+
+    onRestoreButton: function() {
+        Ext.create("OMV.window.Upload", {
+            title: _("Upload backup"),
+            service: "Couchpotato",
+            method: "uploadBackup",
+            listeners: {
+                scope: this,
+                success: function(wnd, response) {
+                    OMV.MessageBox.info(_("Restored backup"), _("Backup was successfully restored."));
+                }
+            }
+        }).show();
     }
 });
 
@@ -204,3 +257,4 @@ OMV.WorkspaceManager.registerPanel({
     position: 10,
     className: "OMV.module.admin.service.couchpotato.Settings"
 });
+

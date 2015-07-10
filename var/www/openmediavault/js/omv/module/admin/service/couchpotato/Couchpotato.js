@@ -24,3 +24,4 @@ OMV.WorkspaceManager.registerNode({
     icon16: "images/couchpotato.png",
     iconSvg: "images/couchpotato.svg"
 });
+

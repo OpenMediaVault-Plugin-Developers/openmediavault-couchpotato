@@ -23,10 +23,18 @@ require_once "openmediavault/notify.inc";
 require_once "openmediavault/object.inc";
 require_once "openmediavault/rpcservice.inc";
 
+use DateTime;
+use FilesystemIterator;
+use Phar;
+use PharData;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+
 class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
 {
     private $couchpotatoSettingsDir = "/var/opt/couchpotato";
     private $couchpotatoSettingsFile = "/var/opt/couchpotato/settings.conf";
+    private $couchpotatoUser = "couchpotato";
 
     private function getEventMessagePath()
     {
@@ -64,8 +72,8 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         $this->registerMethod("setFork");
         $this->registerMethod("deleteFork");
 
-        $this->registerMethod("doBackup");
-        $this->registerMethod("doRestore");
+        $this->registerMethod("downloadBackup");
+        $this->registerMethod("uploadBackup");
     }
 
     public function getSettings($params, $context)
@@ -134,10 +142,14 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             '{
                 "type": "object",
                 "properties": {
-                    "enable": { "type": "boolean" },
-                    "repo": { "type": "string" },
-                    "branch": { "type": "string" },
-                    "show_tab": { "type": "boolean" }
+                    "enable"   : { "type": "boolean" },
+                    "repo"     : { "type": "string" },
+                    "branch"   : { "type": "string" },
+                    "show_tab" : { "type": "boolean" },
+                    "username" : { "type": "string" },
+                    "usersgrp" : { "type": "boolean" },
+                    "umask"    : { "type": "integer" }
+
                 }
             }'
         );
@@ -152,22 +164,15 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             );
         }
 
-        if ($params["showtab"] == true && $params["ppass"] != true) {
-            if (! file_exists('/var/www/openmediavault/js/omv/module/admin/service/media/Media.js')) {
-                throw new OMVException(
-                    OMVErrorMsg::E_MISC_FAILURE,
-                    "Install links and add an entry or enable Proxy Pass to use the web tab."
-                );
-            }
-        }
-        //Checks finished.
-
         $object = array(
-            "enable" => array_boolval($params, "enable"),
-            "branch" => $params["branch"],
-            "repo" => $params["repo"],
-            "show_tab" => array_boolval($params, "show_tab"),
-            "forks" => $oldObject["forks"],
+            "enable"    => boolval($params["enable"]),
+            "branch"    => $params["branch"],
+            "repo"      => $params["repo"],
+            "show_tab"  => boolval($params["show_tab"]),
+            "forks"     => $oldObject["forks"],
+            "usersgrp"  => boolval($params["usersgrp"]),
+            "username"  => $params["username"],
+            "umask"     => $params["umask"],
         );
 
         if ($xmlConfig->replace($this->getXpath(), $object) === false) {
@@ -417,79 +422,54 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         return $this->deleteConfigObjectByPath($xpath);
     }
 
-    public function doBackup($params, $context)
+    public function downloadBackup($params, $context)
     {
         // Validate the RPC caller context.
         $this->validateMethodContext($context, array(
-            "role" => OMV_ROLE_ADMINISTRATOR
+            "role" => OMV_ROLE_EVERYONE
         ));
 
-        // Validate the parameters of the RPC service method.
-        $this->validateMethodParams(
-            $params,
-            '{
-                "type": "object",
-                "properties": {
-                    "sharedfolderref": { ' . $GLOBALS["OMV_JSONSCHEMA_UUID"] . ' }
-                }
-            }'
-        );
-
-        // Couchpotato needs to have run once to generate its
-        // settings. Check if this is true.
-        if (!file_exists($this->couchpotatoSettingsFile)) {
+        if (!file_exists("$this->couchpotatoSettingsFile")) {
             throw new OMVException(
                 OMVErrorMsg::E_EXEC_MISC,
-                "No settings directory found."
+                "Nothing to backup found."
             );
         }
 
-        // Validate the RPC caller context.
-        $this->validateMethodContext($context, array(
-            "role" => OMV_ROLE_ADMINISTRATOR
-        ));
+        $tmpFile = sprintf("%s/%s.tar", sys_get_temp_dir(), uniqid());
+        $archive = new PharData($tmpFile);
 
-        // Create a background process.
-        $bgStatusFilename = $this->createBgProcStatus();
-        $pid = $this->fork();
+        $archive->addFile($this->couchpotatoSettingsFile, "settings.conf");
 
-        // Parent process.
-        if ($pid > 0) {
-            $this->initializeBgProcStatus($bgStatusFilename, $pid);
-            return $bgStatusFilename;
-        }
+        $directoryIterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(
+                "$this->couchpotatoSettingsDir/database",
+                FilesystemIterator::SKIP_DOTS
+            )
+        );
 
-        // Child process.
-        try {
-            $bgOutputFilename = $this->createBgProcOutput();
-            $this->updateBgProcStatus(
-                $bgStatusFilename,
-                "outputfilename",
-                $bgOutputFilename
-            );
+        $archive->buildFromIterator(
+            $directoryIterator,
+            $this->couchpotatoSettingsDir
+        );
 
-            $backupPath = sprintf(
-                "%s%scouchpotato.tar.gz",
-                $this->getSharedFolderPathByUuid($params["sharedfolderref"]),
-                DIRECTORY_SEPARATOR
-            );
+        $archive->compress(Phar::GZ);
 
-            $cmd = sprintf(
-                "tar -zcvPf %s %s 2>&1",
-                $backupPath,
-                $this->couchpotatoSettingsDir
-            );
+        // Remove uncompressed tar and set $tmpFile to the compressed.
+        unlink($tmpFile);
+        $tmpFile = "$tmpFile.gz";
 
-            $this->exec($cmd, $output, $bgOutputFilename);
-            $this->finalizeBgProcStatus($bgStatusFilename, $output);
-            exit(0);
-        } catch (Exception $e) {
-            $this->finalizeBgProcStatus($bgStatusFilename, "", $e);
-            exit(1);
-        }
+        $now = new DateTime();
+        $time = $now->format(DateTime::ISO8601);
+
+        return array(
+            "contenttype" => "application/x-tar",
+            "filename"    => "couchpotato-$time.tar.gz",
+            "filepath"    => $tmpFile,
+        );
     }
 
-    public function doRestore($params, $context)
+    public function uploadBackup($params, $context)
     {
         // Validate the RPC caller context.
         $this->validateMethodContext($context, array(
@@ -502,93 +482,53 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             '{
                 "type": "object",
                 "properties": {
-                    "sharedfolderref": { ' . $GLOBALS["OMV_JSONSCHEMA_UUID"] . ' }
+                    "filename": { "type": "string" },
+                    "filepath": { "type": "string" }
                 }
             }'
         );
 
-        // Validate the RPC caller context.
-        $this->validateMethodContext($context, array(
-            "role" => OMV_ROLE_ADMINISTRATOR
-        ));
+        // Rename file so that it's recognized by the PharData class.
+        $filepath = sprintf("%s.tar.gz", $params["filepath"]);
+        rename($params["filepath"], $filepath);
 
-        $backupPath = sprintf(
-            "%s%scouchpotato.tar.gz",
-            $this->getSharedFolderPathByUuid($params["sharedfolderref"]),
-            DIRECTORY_SEPARATOR
+        $directoryIterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(
+                $this->couchpotatoSettingsDir,
+                FilesystemIterator::SKIP_DOTS
+            ),
+            RecursiveIteratorIterator::CHILD_FIRST
         );
 
-        if (is_null($backupPath)) {
-            throw new OMVException(
-                OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
-                $xpath
-            );
-        }
-
-        // Check if backup is present.
-        if (file_exists($backupPath)) {
-            // Create a background process.
-            $bgStatusFilename = $this->createBgProcStatus();
-            $pid = $this->fork();
-
-            // Parent process.
-            if ($pid > 0) {
-                $this->initializeBgProcStatus($bgStatusFilename, $pid);
-                return $bgStatusFilename;
+        foreach ($directoryIterator as $file) {
+            if ($file->isFile()) {
+                unlink($file->getPathname());
             }
 
-            // Delete current settings folder.
-            rmdir($this->couchpotatoSettingsDir);
-
-            // Get the Couchpotato module.
-            $moduleMgr = &OMVModuleMgr::getInstance();
-            $couchpotatoModule = $moduleMgr->getModule($this->getName());
-
-            // Child process.
-            try {
-                $couchpotatoModule->stopService();
-                $bgOutputFilename = $this->createBgProcOutput();
-                $this->updateBgProcStatus(
-                    $bgStatusFilename,
-                    "outputfilename",
-                    $bgOutputFilename
-                );
-
-                $cmd = sprintf("tar -zxvf %s -C / 2>&1", $backupPath);
-
-                $this->exec($cmd, $output, $bgOutputFilename);
-                $this->finalizeBgProcStatus($bgStatusFilename, $output);
-                $couchpotatoModule->startService();
-                exit(0);
-            } catch (Exception $e) {
-                $this->finalizeBgProcStatus($bgStatusFilename, "", $e);
-                $couchpotatoModule->startService();
-                exit(1);
+            if ($file->isDir()) {
+                rmdir($file->getPathname());
             }
-        } else {
-            throw new OMVException(OMVErrorMsg::E_EXEC_MISC, "No backup found!");
         }
-    }
 
-    private function getSharedFolderPathByUuid($uuid)
-    {
-        global $xmlConfig;
+        $archive = new PharData($filepath);
 
-        $xpath = sprintf("//system/shares/sharedfolder[uuid='%s']", $uuid);
-        $sharedFolder = $xmlConfig->get($xpath);
-        $sharedFolderRelDirPath = $sharedFolder["reldirpath"];
+        $archive->extractTo($this->couchpotatoSettingsDir);
 
-        $xpath = sprintf(
-            "//system/fstab/mntent[uuid='%s']",
-            $sharedFolder["mntentref"]
-        );
-        $mountPoint = $xmlConfig->get($xpath);
-        $mountPointDir = $mountPoint["dir"];
+        foreach ($directoryIterator as $file) {
+            chown($file->getPathname(), $this->couchpotatoUser);
+            chgrp($file->getPathname(), $this->couchpotatoUser);
+        }
 
-        return $mountPointDir . DIRECTORY_SEPARATOR . $sharedFolderRelDirPath;
+        // Rename file back to orignal name so that OMV will remove it.
+        rename($filepath, $params["filepath"]);
+
+        // Send a modify signal so that the user can trigger a restart.
+        $dispatcher = &OMVNotifyDispatcher::getInstance();
+        $dispatcher->notify(OMV_NOTIFY_MODIFY, $this->getEventMessagePath());
     }
 }
 
 // Register the RPC service.
 $rpcServiceMgr = &OMVRpcServiceMgr::getInstance();
 $rpcServiceMgr->registerService(new OMVRpcServiceCouchpotato());
+

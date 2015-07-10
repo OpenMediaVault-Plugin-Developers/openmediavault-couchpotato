@@ -5,14 +5,51 @@ set -e
 . /etc/default/openmediavault
 . /usr/share/openmediavault/scripts/helper-functions
 
+OMV_COUCHPOTATO_XPATH="/config/services/couchpotato"
+
+# Create default /etc/default/couchpotato file.
+rm /etc/default/couchpotato
+cat <<EOF > /etc/default/couchpotato
+# OPTIONS: CP_HOME, CP_USER, CP_DATA, CP_PIDFILE, PYTHON_BIN, CP_OPTS, SSD_OPTS
+. /etc/default/openmediavault
+. /usr/share/openmediavault/scripts/helper-functions
+
+CP_HOME=/opt/couchpotato
+CP_DATA=/var/opt/couchpotato
+CP_USER=\$(omv_config_get /config/services/couchpotato/username)
+CP_PIDFILE=/var/run/couchpotato/couchpotato.pid
+
+EOF
+
+if [ ! -z "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/umask")" ] && [ "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/usersgrp")" = "1" ]; then
+    cat <<EOF >> /etc/default/couchpotato
+#CP_OPTS=
+SSD_OPTS=" --group=users --umask=\$(omv_config_get /config/services/couchpotato/umask)"
+
+EOF
+elif [ "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/usersgrp")" = "1" ]; then
+    cat <<EOF >> /etc/default/couchpotato
+#CP_OPTS=
+SSD_OPTS=" --group=users"
+
+EOF
+elif [ ! -z "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/umask")" ]; then
+    cat <<EOF >> /etc/default/couchpotato
+#CP_OPTS=
+SSD_OPTS=" --umask=\$(omv_config_get /config/services/couchpotato/umask)"
+
+EOF
+fi
+
 if [ -f /etc/default/couchpotato ]; then
     . /etc/default/couchpotato
 fi
 
-OMV_COUCHPOTATO_APP_PATH=${CP_HOME-/opt/couchpotato/}
-OMV_COUCHPOTATO_DATA_PATH=${CP_DATA-/var/opt/couchpotato}
-OMV_COUCHPOTATO_USER=${CP_USER-couchpotato}
-OMV_COUCHPOTATO_XPATH="/config/services/couchpotato"
+OMV_COUCHPOTATO_APP_PATH=${CP_HOME:-"/opt/couchpotato"}
+OMV_COUCHPOTATO_DATA_PATH=${CP_DATA:-"/var/opt/couchpotato"}
+OMV_COUCHPOTATO_USER=${CP_USER:-"couchpotato"}
+OMV_COUCHPOTATO_DAEMON_OPTS=${CP_OPTS-}
+OMV_COUCHPOTATO_SSD_OPTS=${SSD_OPTS-}
 
 switch_repo()
 {
@@ -45,10 +82,8 @@ branch="$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/branch")"
 
 # If $OMV_COUCHPOTATO_APP_PATH exists and is not empty fetch current repo and branch.
 if [ -n "$(ls -A $OMV_COUCHPOTATO_APP_PATH)" ]; then
-    cd $OMV_COUCHPOTATO_APP_PATH
-
-    current_repo="$(git config --get remote.origin.url)"
-    current_branch="$(git rev-parse --abbrev-ref HEAD)"
+    current_repo="$(GIT_DIR=$OMV_COUCHPOTATO_APP_PATH/.git git config --get remote.origin.url)"
+    current_branch="$(GIT_DIR=$OMV_COUCHPOTATO_APP_PATH/.git git rev-parse --abbrev-ref HEAD)"
 
     if [ $repo != $current_repo ]; then
         switch_repo $repo $branch
@@ -61,5 +96,6 @@ if [ -n "$(ls -A $OMV_COUCHPOTATO_APP_PATH)" ]; then
     fi
 else
    switch_repo $repo $branch
-   exit 0
 fi
+
+exit 0

@@ -46,3 +46,4 @@ OMV.WorkspaceManager.registerPanel({
     position: 40,
     className: "OMV.module.admin.service.couchpotato.WebInterface"
 });
+

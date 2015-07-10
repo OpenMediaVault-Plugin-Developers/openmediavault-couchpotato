@@ -121,3 +121,4 @@ OMV.WorkspaceManager.registerPanel({
     position: 20,
     className: "OMV.module.admin.service.couchpotato.Forks"
 });
+

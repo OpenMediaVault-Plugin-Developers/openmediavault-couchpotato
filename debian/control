@@ -8,7 +8,7 @@ Standards-Version: 3.9.3
 
 Package: openmediavault-couchpotato
 Architecture: all
-Depends: ${misc:Depends}, openmediavault (>= 0.6), python, git
+Depends: openmediavault (>= 0.6), adduser, git, python, ${misc:Depends}
 Description: OpenMediaVault CouchPotatoServer plugin
  CouchPotato (CP) is an automatic NZB and torrent downloader.
  You can keep a "movies I want"-list and it will search for NZBs/torrents

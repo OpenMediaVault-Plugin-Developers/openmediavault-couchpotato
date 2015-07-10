@@ -1,3 +1,21 @@
+openmediavault-couchpotato (1.2) stable; urgency=low
+
+  [ Simon Jonsson ]
+  * remove unnecessary sprintf call
+  * try to make ini parsing work with php 5.5 and 5.4
+  * copy files as couchpotato user
+  * update comments
+
+  [ cptjhmiller ]
+  * Add links check
+
+  [ Jamie ]
+  * Update couchpotato.inc
+
+  [ root ]
+
+ -- root <root@localhost.localdomain>  Fri, 10 Jul 2015 11:54:15 +0100
+
 openmediavault-couchpotato (1.1) stable; urgency=low
 
   * Use init scripts provided by CouchPotato
