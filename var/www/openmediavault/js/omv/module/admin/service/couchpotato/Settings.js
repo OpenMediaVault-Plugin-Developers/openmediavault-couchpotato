@@ -212,7 +212,7 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                 allowBlank: true,
                 plugins: [{
                     ptype: "fieldinfo",
-                    text: _("Sets transmission's file mode creation mask.")
+                    text: _("Sets CouchPotato's file mode creation mask.")
                 }]
             }]
         }];
