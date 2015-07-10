@@ -8,15 +8,13 @@ set -e
 OMV_COUCHPOTATO_XPATH="/config/services/couchpotato"
 
 # Create default /etc/default/couchpotato file.
-rm /etc/default/couchpotato
+#rm /etc/default/couchpotato
 cat <<EOF > /etc/default/couchpotato
 # OPTIONS: CP_HOME, CP_USER, CP_DATA, CP_PIDFILE, PYTHON_BIN, CP_OPTS, SSD_OPTS
-. /etc/default/openmediavault
-. /usr/share/openmediavault/scripts/helper-functions
 
 CP_HOME=/opt/couchpotato
 CP_DATA=/var/opt/couchpotato
-CP_USER=\$(omv_config_get /config/services/couchpotato/username)
+CP_USER=$(omv_config_get /config/services/couchpotato/username)
 CP_PIDFILE=/var/run/couchpotato/couchpotato.pid
 
 EOF
@@ -24,7 +22,7 @@ EOF
 if [ ! -z "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/umask")" ] && [ "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/usersgrp")" = "1" ]; then
     cat <<EOF >> /etc/default/couchpotato
 #CP_OPTS=
-SSD_OPTS=" --group=users --umask=\$(omv_config_get /config/services/couchpotato/umask)"
+SSD_OPTS=" --group=users --umask=$(omv_config_get /config/services/couchpotato/umask)"
 
 EOF
 elif [ "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/usersgrp")" = "1" ]; then
@@ -36,7 +34,7 @@ EOF
 elif [ ! -z "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/umask")" ]; then
     cat <<EOF >> /etc/default/couchpotato
 #CP_OPTS=
-SSD_OPTS=" --umask=\$(omv_config_get /config/services/couchpotato/umask)"
+SSD_OPTS=" --umask=$(omv_config_get /config/services/couchpotato/umask)"
 
 EOF
 fi
@@ -99,3 +97,4 @@ else
 fi
 
 exit 0
+
