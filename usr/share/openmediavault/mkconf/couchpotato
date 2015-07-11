@@ -39,6 +39,9 @@ SSD_OPTS=" --umask=$(omv_config_get /config/services/couchpotato/umask)"
 EOF
 fi
 
+ppass="$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/ppass")"
+ssl="$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/ssl")"
+
 if [ -f /etc/default/couchpotato ]; then
     . /etc/default/couchpotato
 fi
@@ -48,6 +51,67 @@ OMV_COUCHPOTATO_DATA_PATH=${CP_DATA:-"/var/opt/couchpotato"}
 OMV_COUCHPOTATO_USER=${CP_USER:-"couchpotato"}
 OMV_COUCHPOTATO_DAEMON_OPTS=${CP_OPTS-}
 OMV_COUCHPOTATO_SSD_OPTS=${SSD_OPTS-}
+OMV_COUCHPOTATO1_DATA_CONFIG=${OMV_COUCHPOTATO_DATA_PATH}/settings.conf
+
+if [ $ssl = "1" ]; then
+    if [ ! -f $OMV_COUCHPOTATO_DATA_PATH/Certificate.crt ]; then
+        #openssl genrsa 2048 > $OMV_COUCHPOTATO_DATA_PATH/Private.key
+        #openssl req -new -x509 -nodes -newkey rsa:2048 -days 1000 -key $OMV_COUCHPOTATO_DATA_PATH/Private.key > $OMV_COUCHPOTATO_DATA_PATH/Certificate.crt
+        openssl req \
+        -new \
+        -newkey rsa:4096 \
+        -days 365 \
+        -nodes \
+        -x509 \
+        -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=localhost" \
+        -keyout $OMV_COUCHPOTATO_DATA_PATH/Private.key \
+        -out $OMV_COUCHPOTATO_DATA_PATH/Certificate.crt
+
+        chmod 0600 ${OMV_COUCHPOTATO_DATA_PATH}/Certificate.crt
+        chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_USER ${OMV_COUCHPOTATO_DATA_PATH}/Certificate.crt
+        #Enable
+        if [ -f $OMV_COUCHPOTATO1_DATA_CONFIG ]; then
+            #sed -i 's/^enable_https.*/enable_https = 1/' $OMV_COUCHPOTATO1_DATA_CONFIG
+            sed -i 's|^ssl_cert.*|ssl_cert = '$OMV_COUCHPOTATO_DATA_PATH'\/Certificate.crt|' $OMV_COUCHPOTATO1_DATA_CONFIG
+            sed -i 's|^ssl_key.*|ssl_key = '$OMV_COUCHPOTATO_DATA_PATH'\/Private.key|' $OMV_COUCHPOTATO1_DATA_CONFIG
+        fi
+    fi
+else
+    #Disable
+    if [ -f "${OMV_COUCHPOTATO_DATA_PATH}/Certificate.crt" ]; then
+        rm -Rf "${OMV_COUCHPOTATO_DATA_PATH}/Certificate.crt" > /dev/null 2>&1
+        rm -Rf "${OMV_COUCHPOTATO_DATA_PATH}/Private.key" > /dev/null 2>&1
+    fi
+
+    if [ -f $OMV_COUCHPOTATO1_DATA_CONFIG ]; then
+        #sed -i 's/^enable_https.*/enable_https = 0/' $OMV_COUCHPOTATO1_DATA_CONFIG
+        sed -i 's|^ssl_cert.*|ssl_cert = |' $OMV_COUCHPOTATO1_DATA_CONFIG
+        sed -i 's|^ssl_key.*|ssl_key = |' $OMV_COUCHPOTATO1_DATA_CONFIG
+    fi
+fi
+
+if [ $ppass = "1" ]; then
+    cat <<EOF > /etc/nginx/openmediavault-webgui.d/cp.conf
+location /couchpotato {
+        proxy_pass        http://localhost:5050/couchpotato;
+        proxy_set_header  Host localhost:5050;
+        proxy_redirect    default;
+}
+
+EOF
+    if [ -f $OMV_COUCHPOTATO1_DATA_CONFIG ]; then
+        sed -i 's/^url_base.*/url_base = couchpotato/' $OMV_COUCHPOTATO1_DATA_CONFIG
+    fi
+
+    nginx -s reload
+elif [ -f /etc/nginx/openmediavault-webgui.d/cp.conf ]; then
+    rm -Rf /etc/nginx/openmediavault-webgui.d/cp.conf > /dev/null 2>&1
+    if [ -f $OMV_COUCHPOTATO1_DATA_CONFIG ]; then
+        sed -i 's/^url_base.*/url_base = ""/' $OMV_COUCHPOTATO1_DATA_CONFIG
+    fi
+
+    nginx -s reload
+fi
 
 switch_repo()
 {

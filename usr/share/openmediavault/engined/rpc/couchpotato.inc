@@ -118,10 +118,12 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
 
         // The port value is a readonly value fetched from the
         // CouchPotato configuration.
-        $object["port"] = intval($port);
-
-        $object["enable"] = boolval($object["enable"]);
+        $object["port"]     = intval($port);
+        $object["enable"]   = boolval($object["enable"]);
         $object["show_tab"] = boolval($object["show_tab"]);
+        $object["ssl"]      = boolval($object["ssl"]);
+        $object["ppass"]    = boolval($object["ppass"]);
+
 
         // Remove useless fields from the result object.
         unset($object["forks"]);
@@ -148,8 +150,9 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
                     "show_tab" : { "type": "boolean" },
                     "username" : { "type": "string" },
                     "usersgrp" : { "type": "boolean" },
-                    "umask"    : { "type": "integer" }
-
+                    "umask"    : { "type": "integer" },
+                    "ppass"    : { "type" : "boolean" },
+                    "ssl"      : { "type" : "boolean" }
                 }
             }'
         );
@@ -173,6 +176,9 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             "usersgrp"  => boolval($params["usersgrp"]),
             "username"  => $params["username"],
             "umask"     => $params["umask"],
+            "ppass"     => array_boolval($params, "ppass"),
+            "ssl"       => array_boolval($params, "ssl"),
+
         );
 
         if ($xmlConfig->replace($this->getXpath(), $object) === false) {

@@ -105,6 +105,24 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                 fieldLabel: _("Enable"),
                 checked: false
             }, {
+                xtype: "checkbox",
+                name: "show_tab",
+                fieldLabel: _("Show Tab"),
+                boxLabel: _("Show tab containing Couchpotato web interface frame."),
+                checked: false
+            }, {
+                xtype      : "checkbox",
+                name       : "ssl",
+                fieldLabel : _("SSL"),
+                boxLabel   : _("Auto enable SSL. A certificate will be generated."),
+                checked    : false
+            }, {
+                xtype      : "checkbox",
+                name       : "ppass",
+                fieldLabel : _("Proxy Pass"),
+                boxLabel   : _("Enable this to access via OMV_IP/couchpotato"),
+                checked    : false
+            }, {
                 // The port value is a readonly value fetched from the
                 // CouchPotato configuration.
                 xtype: "hiddenfield",
@@ -179,12 +197,6 @@ Ext.define("OMV.module.admin.service.couchpotato.Settings", {
                     ptype: "fieldinfo",
                     text: _("The branch you want to use. choose master if you don't know what's involved.")
                 }]
-            }, {
-                xtype: "checkbox",
-                name: "show_tab",
-                fieldLabel: _("Show Tab"),
-                boxLabel: _("Show tab containing Couchpotato web interface frame."),
-                checked: false
             }]
                 },{
             xtype    : "fieldset",
