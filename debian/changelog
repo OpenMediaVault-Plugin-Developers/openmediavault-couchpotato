@@ -1,3 +1,9 @@
+openmediavault-couchpotato (3.0) stable; urgency=low
+
+  * OMV 3.0 release.
+
+ -- OpenMediaVault Plugin Developers <plugins@omv-extras.org>  Sat, 09 Jan 2016 01:56:00 +0000
+
 openmediavault-couchpotato (1.2) stable; urgency=low
 
   [ Simon Jonsson ]

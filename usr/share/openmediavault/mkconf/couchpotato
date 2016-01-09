@@ -8,55 +8,290 @@ set -e
 OMV_COUCHPOTATO_XPATH="/config/services/couchpotato"
 
 # Create default /etc/default/couchpotato file.
-#rm /etc/default/couchpotato
-cat <<EOF > /etc/default/couchpotato
-# OPTIONS: CP_HOME, CP_USER, CP_DATA, CP_PIDFILE, PYTHON_BIN, CP_OPTS, SSD_OPTS
+rm /lib/systemd/system/couchpotato.service
+cat <<EOF > /lib/systemd/system/couchpotato.service
+[Unit]
+Description=CouchPotato Daemon
+After=network-online.target
 
-CP_HOME=/opt/couchpotato
-CP_DATA=/var/opt/couchpotato
-CP_USER=$(omv_config_get /config/services/couchpotato/username)
-CP_PIDFILE=/var/run/couchpotato/couchpotato.pid
-
+[Service]
+User=$(omv_config_get /config/services/couchpotato/username)
 EOF
-
-if [ ! -z "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/umask")" ] && [ "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/usersgrp")" = "1" ]; then
-    cat <<EOF >> /etc/default/couchpotato
-#CP_OPTS=
-SSD_OPTS=" --group=users --umask=$(omv_config_get /config/services/couchpotato/umask)"
-
+if [ "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/usersgrp")" = "1" ]; then
+    cat <<EOF >> /lib/systemd/system/couchpotato.service
+Group=users
 EOF
-elif [ "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/usersgrp")" = "1" ]; then
-    cat <<EOF >> /etc/default/couchpotato
-#CP_OPTS=
-SSD_OPTS=" --group=users"
-
-EOF
-elif [ ! -z "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/umask")" ]; then
-    cat <<EOF >> /etc/default/couchpotato
-#CP_OPTS=
-SSD_OPTS=" --umask=$(omv_config_get /config/services/couchpotato/umask)"
-
+else
+    cat <<EOF >> /lib/systemd/system/couchpotato.service
+Group=couchpotato
 EOF
 fi
+if [ ! -z "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/umask")" ]; then
+    cat <<EOF >> /lib/systemd/system/couchpotato.service
+UMask=$(omv_config_get /config/services/couchpotato/umask)
+EOF
+else
+    cat <<EOF >> /lib/systemd/system/couchpotato.service
+UMask=000
+EOF
+fi
+cat <<EOF >> /lib/systemd/system/couchpotato.service
+Type=forking
+GuessMainPID=no
+ExecStart=/usr/bin/python /opt/couchpotato/CouchPotato.py --quiet --daemon --data_dir /var/opt/couchpotato
+
+[Install]
+WantedBy=multi-user.target
+
+EOF
 
 ppass="$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/ppass")"
 ssl="$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/ssl")"
+newinstance="$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/newinstance")"
+newinstenable="$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/newinstenable")"
+OMV_COUCHPOTATO_USER="$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/username")"
+OMV_COUCHPOTATO1_APP_PATH=/opt/couchpotato
+OMV_COUCHPOTATO1_DATA_PATH=/var/opt/couchpotato
+OMV_COUCHPOTATO2_APP_PATH=/opt/couchpotato2
+OMV_COUCHPOTATO2_DATA_PATH=/var/opt/couchpotato2
+OMV_COUCHPOTATO1_DATA_CONFIG=${OMV_COUCHPOTATO1_DATA_PATH}/settings.conf
+OMV_COUCHPOTATO2_DATA_CONFIG=${OMV_COUCHPOTATO2_DATA_PATH}/settings.conf
 
-if [ -f /etc/default/couchpotato ]; then
-    . /etc/default/couchpotato
+if [ -f /lib/systemd/system/couchpotato2.service ]; then
+    service couchpotato2 stop > /dev/null 2>&1
 fi
 
-OMV_COUCHPOTATO_APP_PATH=${CP_HOME:-"/opt/couchpotato"}
-OMV_COUCHPOTATO_DATA_PATH=${CP_DATA:-"/var/opt/couchpotato"}
-OMV_COUCHPOTATO_USER=${CP_USER:-"couchpotato"}
-OMV_COUCHPOTATO_DAEMON_OPTS=${CP_OPTS-}
-OMV_COUCHPOTATO_SSD_OPTS=${SSD_OPTS-}
-OMV_COUCHPOTATO1_DATA_CONFIG=${OMV_COUCHPOTATO_DATA_PATH}/settings.conf
+switch_repo()
+{
+    local repo=$1
+    local branch=$2
+
+    if [ -d $OMV_COUCHPOTATO1_APP_PATH ]; then
+        find $OMV_COUCHPOTATO1_APP_PATH -mindepth 1 -delete
+    fi
+
+    if [ -d $OMV_COUCHPOTATO1_DATA_PATH ]; then
+        find $OMV_COUCHPOTATO1_DATA_PATH -mindepth 1 -delete
+    fi
+
+    if [ ! -d $OMV_COUCHPOTATO1_DATA_PATH ]; then
+        mkdir -p $OMV_COUCHPOTATO1_DATA_PATH
+    fi
+
+    cd /home
+
+    su -s /bin/sh -c "git clone $repo -b $branch $OMV_COUCHPOTATO1_APP_PATH" $OMV_COUCHPOTATO_USER
+
+    if [ ! -f $OMV_COUCHPOTATO1_DATA_CONFIG ]; then
+        echo '[core]
+launch_browser = 0
+git_path = "/usr/bin/git"
+port = 5050
+ssl_cert =
+ssl_key =
+url_base =
+permission_file = 0755
+permission_folder = 0755' > $OMV_COUCHPOTATO1_DATA_CONFIG
+            chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_GROUP $OMV_COUCHPOTATO1_DATA_PATH -R
+            chmod 775 $OMV_COUCHPOTATO1_DATA_PATH -R
+    fi
+}
+
+switch_branch()
+{
+    local branch=$1
+
+    cd $OMV_COUCHPOTATO1_APP_PATH
+
+    su -s /bin/sh -c "git reset --hard" $OMV_COUCHPOTATO_USER
+    su -s /bin/sh -c "git checkout $branch" $OMV_COUCHPOTATO_USER
+}
+
+repo="$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/repo")"
+branch="$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/branch")"
+
+
+
+if [ "${repo}" != "Please choose a repository" ] | [ "${branch}" != "Please choose a branch" ]; then
+    # If $OMV_COUCHPOTATO1_APP_PATH exists and is not empty fetch current repo and branch.
+    if [ ! -d "${OMV_COUCHPOTATO1_APP_PATH}" ]; then
+        mkdir -p $OMV_COUCHPOTATO1_APP_PATH
+        chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_GROUP $OMV_COUCHPOTATO1_APP_PATH
+    fi
+
+    # If $OMV_COUCHPOTATO1_APP_PATH does not exist it must be first clone.
+    if [ ! -f "${OMV_COUCHPOTATO1_APP_PATH}/CouchPotato.py" ]; then
+        find $OMV_COUCHPOTATO1_APP_PATH -mindepth 1 -delete
+        switch_repo $repo $branch
+    fi
+
+    # If $OMV_COUCHPOTATO1_APP_PATH exists and is not empty fetch current repo and branch.
+    if [ ! -f "${OMV_COUCHPOTATO1_APP_PATH}/CouchPotato.py" ]; then
+        find $OMV_COUCHPOTATO1_APP_PATH -mindepth 1 -delete
+        switch_repo $repo $branch
+    fi
+
+    if [ -n "$(ls -A $OMV_COUCHPOTATO1_APP_PATH)" ]; then
+        cd $OMV_COUCHPOTATO1_APP_PATH
+
+        current_repo="$(git config --get remote.origin.url)"
+        current_branch="$(git rev-parse --abbrev-ref HEAD)"
+
+        if [ $repo != $current_repo ]; then
+            switch_repo $repo $branch
+        fi
+
+        if [ $branch != $current_branch ]; then
+            switch_branch $branch $repo
+        fi
+    else
+        find $OMV_COUCHPOTATO1_APP_PATH -mindepth 1 -delete
+        switch_repo $repo $branch
+    fi
+fi
+
+if [ $newinstance = "1" ]; then
+    if  [ -f /lib/systemd/system/couchpotato2.service ]; then
+        rm /lib/systemd/system/couchpotato2.service
+    fi
+
+    cat <<EOF > /lib/systemd/system/couchpotato2.service
+[Unit]
+Description=CouchPotato2 Daemon
+After=network-online.target
+
+[Service]
+User=$(omv_config_get /config/services/couchpotato/username)
+EOF
+
+    if [ "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/usersgrp")" = "1" ]; then
+        cat <<EOF >> /lib/systemd/system/couchpotato2.service
+Group=users
+EOF
+    else
+        cat <<EOF >> /lib/systemd/system/couchpotato2.service
+Group=couchpotato
+EOF
+    fi
+
+    if [ ! -z "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/umask")" ]; then
+        cat <<EOF >> /lib/systemd/system/couchpotato2.service
+UMask=$(omv_config_get /config/services/couchpotato/umask)
+EOF
+    else
+        cat <<EOF >> /lib/systemd/system/couchpotato2.service
+UMask=000
+EOF
+    fi
+    cat <<EOF >> /lib/systemd/system/couchpotato2.service
+Type=forking
+GuessMainPID=no
+ExecStart=/usr/bin/python /opt/couchpotato2/CouchPotato.py --quiet --daemon --data_dir /var/opt/couchpotato2
+
+[Install]
+WantedBy=multi-user.target
+
+EOF
+    systemctl enable couchpotato2.service
+
+    if [ $newinstenable = "1" ]; then
+        repo2="$(omv_config_get "/config/services/couchpotato/repo2")"
+        branch2="$(omv_config_get "/config/services/couchpotato/branch2")"
+        if [ ! -f "${OMV_COUCHPOTATO2_APP_PATH}/CouchPotato.py" ]; then
+            if [ -d $OMV_COUCHPOTATO2_APP_PATH ]; then
+                find $OMV_COUCHPOTATO2_APP_PATH -mindepth 1 -delete
+            fi
+
+            if [ ! -d $OMV_COUCHPOTATO2_APP_PATH ]; then
+                mkdir -p $OMV_COUCHPOTATO2_APP_PATH
+                if [ "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/usersgrp")" = "1" ]; then
+                    chown "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/username")":users $OMV_COUCHPOTATO2_APP_PATH
+                else
+                    chown "$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/username")":"$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/username")" $OMV_COUCHPOTATO2_APP_PATH
+                fi
+            fi
+
+            if [ -d $OMV_COUCHPOTATO2_DATA_PATH ]; then
+                find $OMV_COUCHPOTATO2_DATA_PATH -mindepth 1 -delete
+            fi
+
+            cd /tmp
+
+            su -s /bin/sh -c "git clone $repo2 -b $branch2 $OMV_COUCHPOTATO2_APP_PATH" $OMV_COUCHPOTATO_USER
+
+            # Can not create dir as user so create it then change ownership.
+            mkdir -p $OMV_COUCHPOTATO2_DATA_PATH
+            chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_GROUP $OMV_COUCHPOTATO2_DATA_PATH
+        else
+            cd $OMV_COUCHPOTATO2_APP_PATH
+            current_repo2="$(git config --get remote.origin.url)"
+
+            if [ $repo2 != $current_repo2 ]; then
+                if [ -d $OMV_COUCHPOTATO2_APP_PATH ]; then
+                    find $OMV_COUCHPOTATO2_APP_PATH -mindepth 1 -delete
+                fi
+
+                if [ -d $OMV_COUCHPOTATO2_DATA_PATH ]; then
+                    find $OMV_COUCHPOTATO2_DATA_PATH -mindepth 1 -delete
+                fi
+
+                cd /tmp
+
+                su -s /bin/sh -c "git clone $repo2 -b $branch2 $OMV_COUCHPOTATO2_APP_PATH" $OMV_COUCHPOTATO_USER
+
+                # Can not create dir as user so create it then change ownership.
+                mkdir -p $OMV_COUCHPOTATO2_DATA_PATH
+                chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_GROUP $OMV_COUCHPOTATO2_DATA_PATH
+            fi
+
+            cd $OMV_COUCHPOTATO2_APP_PATH
+            current_branch2="$(git rev-parse --abbrev-ref HEAD)"
+
+            if [ $branch2 != $current_branch2 ]; then
+                cd $OMV_COUCHPOTATO2_APP_PATH
+                su -s /bin/sh -c "git reset --hard --quiet" $OMV_COUCHPOTATO_USER
+                su -s /bin/sh -c "git checkout $branch2 --quiet" $OMV_COUCHPOTATO_USER
+            fi
+        fi
+        if [ ! -f $OMV_COUCHPOTATO2_DATA_CONFIG ]; then
+            echo '[core]
+launch_browser = 0
+git_path = "/usr/bin/git"
+port = 5051
+ssl_cert =
+ssl_key =
+url_base =
+permission_file = 0755
+permission_folder = 0755' > $OMV_COUCHPOTATO2_DATA_CONFIG
+            chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_GROUP $OMV_COUCHPOTATO2_DATA_PATH -R
+            chmod 775 $OMV_COUCHPOTATO2_DATA_PATH -R
+        else
+            sed -i 's/^port = 5050/port = 5051/' $OMV_COUCHPOTATO2_DATA_CONFIG
+        fi
+    fi
+else
+    if  [ -f /lib/systemd/system/couchpotato2.service ]; then
+        if [ -f "/var/run/couchpotato/couchpotato2.pid" ]; then
+            rm -Rf /var/run/couchpotato/couchpotato2.pid > /dev/null 2>&1
+        fi
+
+        systemctl disable couchpotato2.service > /dev/null 2>&1
+        if [ -d $OMV_COUCHPOTATO2_APP_PATH ]; then
+            find $OMV_COUCHPOTATO2_APP_PATH -mindepth 1 -delete
+        fi
+
+        if [ -d $OMV_COUCHPOTATO2_DATA_PATH ]; then
+            find $OMV_COUCHPOTATO2_DATA_PATH -mindepth 1 -delete
+        fi
+        rm -Rf /lib/systemd/system/couchpotato2.service > /dev/null 2>&1
+
+        newinstenable="0"
+        xmlstarlet ed -L -u "/config/services/couchpotato/newinstenable" -v 0 $OMV_CONFIG_FILE
+    fi
+fi
 
 if [ $ssl = "1" ]; then
-    if [ ! -f $OMV_COUCHPOTATO_DATA_PATH/Certificate.crt ]; then
-        #openssl genrsa 2048 > $OMV_COUCHPOTATO_DATA_PATH/Private.key
-        #openssl req -new -x509 -nodes -newkey rsa:2048 -days 1000 -key $OMV_COUCHPOTATO_DATA_PATH/Private.key > $OMV_COUCHPOTATO_DATA_PATH/Certificate.crt
+    if [ ! -f $OMV_COUCHPOTATO1_DATA_PATH/Certificate.crt ]; then
         openssl req \
         -new \
         -newkey rsa:4096 \
@@ -64,29 +299,36 @@ if [ $ssl = "1" ]; then
         -nodes \
         -x509 \
         -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=localhost" \
-        -keyout $OMV_COUCHPOTATO_DATA_PATH/Private.key \
-        -out $OMV_COUCHPOTATO_DATA_PATH/Certificate.crt
+        -keyout $OMV_COUCHPOTATO1_DATA_PATH/Private.key \
+        -out $OMV_COUCHPOTATO1_DATA_PATH/Certificate.crt
 
-        chmod 0600 ${OMV_COUCHPOTATO_DATA_PATH}/Certificate.crt
-        chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_USER ${OMV_COUCHPOTATO_DATA_PATH}/Certificate.crt
+        chmod 0600 ${OMV_COUCHPOTATO1_DATA_PATH}/Certificate.crt
+        chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_USER ${OMV_COUCHPOTATO1_DATA_PATH}/Certificate.crt
         #Enable
         if [ -f $OMV_COUCHPOTATO1_DATA_CONFIG ]; then
-            #sed -i 's/^enable_https.*/enable_https = 1/' $OMV_COUCHPOTATO1_DATA_CONFIG
-            sed -i 's|^ssl_cert.*|ssl_cert = '$OMV_COUCHPOTATO_DATA_PATH'\/Certificate.crt|' $OMV_COUCHPOTATO1_DATA_CONFIG
-            sed -i 's|^ssl_key.*|ssl_key = '$OMV_COUCHPOTATO_DATA_PATH'\/Private.key|' $OMV_COUCHPOTATO1_DATA_CONFIG
+            sed -i 's|^ssl_cert.*|ssl_cert = '$OMV_COUCHPOTATO1_DATA_PATH'\/Certificate.crt|' $OMV_COUCHPOTATO1_DATA_CONFIG
+            sed -i 's|^ssl_key.*|ssl_key = '$OMV_COUCHPOTATO1_DATA_PATH'\/Private.key|' $OMV_COUCHPOTATO1_DATA_CONFIG
+        fi
+        if [ -f $OMV_COUCHPOTATO2_DATA_CONFIG ]; then
+            sed -i 's|^ssl_cert.*|ssl_cert = '$OMV_COUCHPOTATO1_DATA_PATH'\/Certificate.crt|' $OMV_COUCHPOTATO2_DATA_CONFIG
+            sed -i 's|^ssl_key.*|ssl_key = '$OMV_COUCHPOTATO1_DATA_PATH'\/Private.key|' $OMV_COUCHPOTATO2_DATA_CONFIG
         fi
     fi
 else
     #Disable
-    if [ -f "${OMV_COUCHPOTATO_DATA_PATH}/Certificate.crt" ]; then
-        rm -Rf "${OMV_COUCHPOTATO_DATA_PATH}/Certificate.crt" > /dev/null 2>&1
-        rm -Rf "${OMV_COUCHPOTATO_DATA_PATH}/Private.key" > /dev/null 2>&1
+    if [ -f "${OMV_COUCHPOTATO1_DATA_PATH}/Certificate.crt" ]; then
+        rm -Rf "${OMV_COUCHPOTATO1_DATA_PATH}/Certificate.crt" > /dev/null 2>&1
+        rm -Rf "${OMV_COUCHPOTATO1_DATA_PATH}/Private.key" > /dev/null 2>&1
     fi
 
     if [ -f $OMV_COUCHPOTATO1_DATA_CONFIG ]; then
-        #sed -i 's/^enable_https.*/enable_https = 0/' $OMV_COUCHPOTATO1_DATA_CONFIG
         sed -i 's|^ssl_cert.*|ssl_cert = |' $OMV_COUCHPOTATO1_DATA_CONFIG
         sed -i 's|^ssl_key.*|ssl_key = |' $OMV_COUCHPOTATO1_DATA_CONFIG
+    fi
+
+    if [ -f $OMV_COUCHPOTATO2_DATA_CONFIG ]; then
+        sed -i 's|^ssl_cert.*|ssl_cert = |' $OMV_COUCHPOTATO2_DATA_CONFIG
+        sed -i 's|^ssl_key.*|ssl_key = |' $OMV_COUCHPOTATO2_DATA_CONFIG
     fi
 fi
 
@@ -102,63 +344,46 @@ EOF
     if [ -f $OMV_COUCHPOTATO1_DATA_CONFIG ]; then
         sed -i 's/^url_base.*/url_base = couchpotato/' $OMV_COUCHPOTATO1_DATA_CONFIG
     fi
-
-    nginx -s reload
-elif [ -f /etc/nginx/openmediavault-webgui.d/cp.conf ]; then
-    rm -Rf /etc/nginx/openmediavault-webgui.d/cp.conf > /dev/null 2>&1
-    if [ -f $OMV_COUCHPOTATO1_DATA_CONFIG ]; then
-        sed -i 's/^url_base.*/url_base = ""/' $OMV_COUCHPOTATO1_DATA_CONFIG
+    if [ -f $OMV_COUCHPOTATO2_DATA_CONFIG ]; then
+        sed -i 's/^url_base.*/url_base = couchpotato2/' $OMV_COUCHPOTATO2_DATA_CONFIG
     fi
-
-    nginx -s reload
-fi
-
-switch_repo()
-{
-    local repo=$1
-    local branch=$2
-
-    if [ -d $OMV_COUCHPOTATO_APP_PATH ]; then
-        find $OMV_COUCHPOTATO_APP_PATH -mindepth 1 -delete
-    fi
-
-    if [ -d $OMV_COUCHPOTATO_DATA_PATH ]; then
-        find $OMV_COUCHPOTATO_DATA_PATH -mindepth 1 -delete
-    fi
-
-    su -s /bin/sh -c "git clone $repo -b $branch $OMV_COUCHPOTATO_APP_PATH" $OMV_COUCHPOTATO_USER
+    if [ "$newinstance" = "1" ]; then
+        cat <<EOF >> /etc/nginx/openmediavault-webgui.d/cp.conf
+location /couchpotato2 {
+        proxy_pass        http://localhost:5051/couchpotato2;
+        proxy_set_header  Host localhost:5051;
+        proxy_redirect    default;
 }
 
-switch_branch()
-{
-    local branch=$1
-
-    cd $OMV_COUCHPOTATO_APP_PATH
-
-    su -s /bin/sh -c "git reset --hard" $OMV_COUCHPOTATO_USER
-    su -s /bin/sh -c "git checkout $branch" $OMV_COUCHPOTATO_USER
-}
-
-repo="$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/repo")"
-branch="$(omv_config_get "${OMV_COUCHPOTATO_XPATH}/branch")"
-
-# If $OMV_COUCHPOTATO_APP_PATH exists and is not empty fetch current repo and branch.
-if [ -n "$(ls -A $OMV_COUCHPOTATO_APP_PATH)" ]; then
-    current_repo="$(GIT_DIR=$OMV_COUCHPOTATO_APP_PATH/.git git config --get remote.origin.url)"
-    current_branch="$(GIT_DIR=$OMV_COUCHPOTATO_APP_PATH/.git git rev-parse --abbrev-ref HEAD)"
-
-    if [ $repo != $current_repo ]; then
-        switch_repo $repo $branch
-        exit 0
+EOF
     fi
-
-    if [ $branch != $current_branch ]; then
-        switch_branch $branch
-        exit 0
-    fi
+    nginx -s reload
 else
-   switch_repo $repo $branch
+    if [ -f /etc/nginx/openmediavault-webgui.d/cp.conf ]; then
+        rm -Rf /etc/nginx/openmediavault-webgui.d/cp.conf > /dev/null 2>&1
+    fi
+    if [ -f $OMV_COUCHPOTATO1_DATA_CONFIG ]; then
+        sed -i 's/^url_base.*/url_base = /' $OMV_COUCHPOTATO1_DATA_CONFIG
+    fi
+    if [ -f $OMV_COUCHPOTATO2_DATA_CONFIG ]; then
+        sed -i 's/^url_base.*/url_base = /' $OMV_COUCHPOTATO2_DATA_CONFIG
+    fi
+
+    nginx -s reload
 fi
 
-exit 0
+if [ $newinstance = "1" ]; then
+    if [ $newinstenable = "1" ]; then
+        systemctl enable couchpotato2.service > /dev/null 2>&1
+        service couchpotato2 start &> /dev/null 2>&1
+    else
+        if [ -f /lib/systemd/system/couchpotato2.service ]; then
+            systemctl disable couchpotato2.service > /dev/null 2>&1
+        fi
 
+        if [ -f /var/run/couchpotato/couchpotato2.pid ]; then
+            rm -Rf /var/run/couchpotato/couchpotato2.pid > /dev/null 2>&1
+        fi
+    fi
+fi
+exit 0

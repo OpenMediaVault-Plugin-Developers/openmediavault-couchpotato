@@ -34,16 +34,23 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
 {
     private $couchpotatoSettingsDir = "/var/opt/couchpotato";
     private $couchpotatoSettingsFile = "/var/opt/couchpotato/settings.conf";
+    private $couchpotato2SettingsDir = "/var/opt/couchpotato2";
+    private $couchpotato2SettingsFile = "/var/opt/couchpotato2/settings.conf";
     private $couchpotatoUser = "couchpotato";
+
+    private function getPluginName()
+    {
+        return strtolower($this->getName());
+    }
 
     private function getEventMessagePath()
     {
-        return "org.openmediavault.service.couchpotato";
+        return sprintf("org.openmediavault.service.%s", $this->getPluginName());
     }
 
     private function getXpath()
     {
-        return "/config/services/couchpotato";
+        return sprintf("/config/services/%s", $this->getPluginName());
     }
 
     private function getForksXpath()
@@ -74,6 +81,8 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
 
         $this->registerMethod("downloadBackup");
         $this->registerMethod("uploadBackup");
+        $this->registerMethod("downloadBackup2");
+        $this->registerMethod("uploadBackup2");
     }
 
     public function getSettings($params, $context)
@@ -118,11 +127,13 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
 
         // The port value is a readonly value fetched from the
         // CouchPotato configuration.
-        $object["port"]     = intval($port);
-        $object["enable"]   = boolval($object["enable"]);
-        $object["show_tab"] = boolval($object["show_tab"]);
-        $object["ssl"]      = boolval($object["ssl"]);
-        $object["ppass"]    = boolval($object["ppass"]);
+        $object["enable"]         = boolval($object["enable"]);
+        $object["show_tab"]       = boolval($object["show_tab"]);
+        $object["newinstance"]    = boolval($object["newinstance"]);
+        $object["newinstenable"]  = boolval($object["newinstenable"]);
+        $object["ssl"]            = boolval($object["ssl"]);
+        $object["ppass"]          = boolval($object["ppass"]);
+        $object["port"]           = intval($port);
 
 
         // Remove useless fields from the result object.
@@ -144,15 +155,20 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             '{
                 "type": "object",
                 "properties": {
-                    "enable"   : { "type": "boolean" },
-                    "repo"     : { "type": "string" },
-                    "branch"   : { "type": "string" },
-                    "show_tab" : { "type": "boolean" },
-                    "username" : { "type": "string" },
-                    "usersgrp" : { "type": "boolean" },
-                    "umask"    : { "type": "integer" },
-                    "ppass"    : { "type" : "boolean" },
-                    "ssl"      : { "type" : "boolean" }
+                    "enable"        : { "type" : "boolean" },
+                    "show_tab"      : { "type" : "boolean" },
+                    "newinstance"   : { "type" : "boolean" },
+                    "newinstenable" : { "type" : "boolean" },
+                    "ppass"         : { "type" : "boolean" },
+                    "ssl"           : { "type" : "boolean" },
+                    "branch"        : { "type" : "string" },
+                    "repo"          : { "type" : "string" },
+                    "branch2"       : { "type" : "string", "optional" : true },
+                    "repo2"         : { "type" : "string", "optional" : true },
+                    "username"      : { "type" : "string" },
+                    "usersgrp"      : { "type" : "boolean" },
+                    "umask"         : { "type" : "string" },
+                    "port"          : { "type" : "integer" }
                 }
             }'
         );
@@ -167,18 +183,55 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
             );
         }
 
-        $object = array(
-            "enable"    => boolval($params["enable"]),
-            "branch"    => $params["branch"],
-            "repo"      => $params["repo"],
-            "show_tab"  => boolval($params["show_tab"]),
-            "forks"     => $oldObject["forks"],
-            "usersgrp"  => boolval($params["usersgrp"]),
-            "username"  => $params["username"],
-            "umask"     => $params["umask"],
-            "ppass"     => array_boolval($params, "ppass"),
-            "ssl"       => array_boolval($params, "ssl"),
+        // Run checks to verify sellected settings
+        if ($params["ssl"] == "1") {
+            if ($params["ppass"] == "1") {
+                throw new OMVException(
+                    OMVErrorMsg::E_MISC_FAILURE,
+                    "You can not enable both SSL and Proxy Pass."
+                );
+            }
+            $xSsl = $xmlConfig->get("/config/webadmin/enablessl");
+            if ($xSsl == "1") {
+                throw new OMVException(
+                    OMVErrorMsg::E_MISC_FAILURE,
+                    "You have SSL enabled for the main UI, Do NOT enable it here as well."
+                );
+            }
+            $ySsl = $xmlConfig->get("/config/system/certificates/sslcertificate/uuid");
+            if ($ySsl == "") {
+                throw new OMVException(
+                    OMVErrorMsg::E_MISC_FAILURE,
+                    "You have not generated any SSL certificates."
+                );
+            }
+        }
 
+        if ($params["showtab"] == 1 && $params["ppass"] != 1) {
+            if (! file_exists('/var/www/openmediavault/js/omv/module/admin/service/media/Media.js')) {
+                throw new OMVException(
+                    OMVErrorMsg::E_MISC_FAILURE,
+                    "Install links and add an entry or enable Proxy Pass to use the web tab."
+                );
+            }
+        }
+
+        $object = array(
+            "enable"        => array_boolval($params, "enable"),
+            "show_tab"      => array_boolval($params, "show_tab"),
+            "newinstance"   => array_boolval($params, "newinstance"),
+            "newinstenable" => array_boolval($params, "newinstenable"),
+            "ppass"         => array_boolval($params, "ppass"),
+            "ssl"           => array_boolval($params, "ssl"),
+            "branch"        => $params["branch"],
+            "repo"          => $params["repo"],
+            "branch2"       => $params["branch2"],
+            "repo2"         => $params["repo2"],
+            "usersgrp"      => boolval($params["usersgrp"]),
+            "username"      => $params["username"],
+            "umask"         => $params["umask"],
+            "port"          => $params["port"],
+            "forks"         => $oldObject['forks'],
         );
 
         if ($xmlConfig->replace($this->getXpath(), $object) === false) {
@@ -253,12 +306,12 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         $this->validateMethodParams(
             $params,
             '{
-                "type": "object",
-                "properties": {
-                    "start": { "type": "integer" },
-                    "limit": { ' . $GLOBALS["OMV_JSONSCHEMA_COUNTFIELD"] . ' },
-                    "sortfield": { ' . $GLOBALS["OMV_JSONSCHEMA_SORTFIELD"] . ' },
-                    "sortdir": { ' . $GLOBALS["OMV_JSONSCHEMA_SORTDIR"] . ' }
+                "type"       : "object",
+                "properties" : {
+                    "start"     : { "type" : "integer" },
+                    "limit"     : { ' . $GLOBALS["OMV_JSONSCHEMA_COUNTFIELD"] . ' },
+                    "sortfield" : { ' . $GLOBALS["OMV_JSONSCHEMA_SORTFIELD"] . ' },
+                    "sortdir"   : { ' . $GLOBALS["OMV_JSONSCHEMA_SORTDIR"] . ' }
                 }
             }'
         );
@@ -293,9 +346,9 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         $this->validateMethodParams(
             $params,
             '{
-                "type": "object",
-                "properties": {
-                    "uuid": { ' . $GLOBALS["OMV_JSONSCHEMA_UUID"] . ' }
+                "type"       : "object",
+                "properties" : {
+                    "uuid" : { ' . $GLOBALS["OMV_JSONSCHEMA_UUID"] . ' }
                 }
             }'
         );
@@ -327,17 +380,17 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         $this->validateMethodParams(
             $params,
             '{
-                "type": "object",
-                "properties": {
-                    "uuid": { ' . $GLOBALS["OMV_JSONSCHEMA_UUID_UNDEFINED"] . ' },
-                    "name": { "type": "string" },
-                    "fork": { "type": "string" }
+                "type"       : "object",
+                "properties" : {
+                    "uuid" : { ' . $GLOBALS["OMV_JSONSCHEMA_UUID_UNDEFINED"] . ' },
+                    "name" : { "type" : "string" },
+                    "fork" : { "type" : "string" }
                 }
             }'
         );
 
         // Check if valid fork. A valid fork should start with
-        // either http(s):// or git://.
+        // either http(s):// or git://
         if (substr($params["fork"], 0, 4) !== "http" &&
             substr($params["fork"], 0, 3) !== "git"
         ) {
@@ -370,11 +423,11 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
 
         // Prepare configuration data and add all branches found.
         $object = array(
-            "uuid" => $params["uuid"] == $GLOBALS["OMV_UUID_UNDEFINED"]
+            "uuid"        => ($params["uuid"] == $GLOBALS["OMV_UUID_UNDEFINED"])
                 ? OMVUtil::uuid() : $params["uuid"],
-            "name" => $params["name"],
-            "fork" => $params["fork"],
-            "branches" => $output,
+            "name"        => $params["name"],
+            "fork"        => $params["fork"],
+            "branches"    => $output,
         );
 
         // Set the configuration data.
@@ -415,9 +468,9 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         $this->validateMethodParams(
             $params,
             '{
-                "type": "object",
-                "properties": {
-                    "uuid": { ' . $GLOBALS["OMV_JSONSCHEMA_UUID"] . ' }
+                "type"       : "object",
+                "properties" : {
+                    "uuid" : { ' . $GLOBALS["OMV_JSONSCHEMA_UUID"] . ' }
                 }
             }'
         );
@@ -432,7 +485,7 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
     {
         // Validate the RPC caller context.
         $this->validateMethodContext($context, array(
-            "role" => OMV_ROLE_EVERYONE
+            "role" => OMV_ROLE_ADMINISTRATOR
         ));
 
         if (!file_exists("$this->couchpotatoSettingsFile")) {
@@ -477,10 +530,21 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
 
     public function uploadBackup($params, $context)
     {
+        global $xmlConfig;
+
         // Validate the RPC caller context.
         $this->validateMethodContext($context, array(
             "role" => OMV_ROLE_ADMINISTRATOR
         ));
+
+        $object = $xmlConfig->get($this->getXpath());
+
+        if (is_null($object)) {
+            throw new OMVException(
+                OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
+                $this->getXpath()
+            );
+        }
 
         // Validate the parameters of the RPC service method.
         $this->validateMethodParams(
@@ -519,10 +583,140 @@ class OMVRpcServiceCouchpotato extends OMVRpcServiceAbstract
         $archive = new PharData($filepath);
 
         $archive->extractTo($this->couchpotatoSettingsDir);
+        // Use users ownership settings
+        foreach ($directoryIterator as $file) {
+            chown($file->getPathname(), $object["username"]);
+            if ($object["usersgrp"] = "1") {
+                chgrp($file->getPathname(), "users");
+            } else {
+                chgrp($file->getPathname(), $object["username"]);
+            }
+        }
+
+        // Old settings 
+        //foreach ($directoryIterator as $file) {
+        //    chown($file->getPathname(), $this->couchpotatoUser);
+        //    chgrp($file->getPathname(), $this->couchpotatoUser);
+        //}
+
+        // Rename file back to orignal name so that OMV will remove it.
+        rename($filepath, $params["filepath"]);
+
+        // Send a modify signal so that the user can trigger a restart.
+        $dispatcher = &OMVNotifyDispatcher::getInstance();
+        $dispatcher->notify(OMV_NOTIFY_MODIFY, $this->getEventMessagePath());
+    }
+
+    public function downloadBackup2($params, $context)
+    {
+        // Validate the RPC caller context.
+        $this->validateMethodContext($context, array(
+            "role" => OMV_ROLE_ADMINISTRATOR
+        ));
+
+        if (!file_exists("$this->couchpotato2SettingsFile")) {
+            throw new OMVException(
+                OMVErrorMsg::E_EXEC_MISC,
+                "Nothing to backup found."
+            );
+        }
+
+        $tmpFile = sprintf("%s/%s.tar", sys_get_temp_dir(), uniqid());
+        $archive = new PharData($tmpFile);
+
+        $archive->addFile($this->couchpotato2SettingsFile, "settings.conf");
+
+        $directoryIterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(
+                "$this->couchpotato2SettingsDir/database",
+                FilesystemIterator::SKIP_DOTS
+            )
+        );
+
+        $archive->buildFromIterator(
+            $directoryIterator,
+            $this->couchpotatoSettingsDir
+        );
+
+        $archive->compress(Phar::GZ);
+
+        // Remove uncompressed tar and set $tmpFile to the compressed.
+        unlink($tmpFile);
+        $tmpFile = "$tmpFile.gz";
+
+        $now = new DateTime();
+        $time = $now->format(DateTime::ISO8601);
+
+        return array(
+            "contenttype" => "application/x-tar",
+            "filename"    => "couchpotato-$time.tar.gz",
+            "filepath"    => $tmpFile,
+        );
+    }
+
+    public function uploadBackup2($params, $context)
+    {
+        global $xmlConfig;
+
+        // Validate the RPC caller context.
+        $this->validateMethodContext($context, array(
+            "role" => OMV_ROLE_ADMINISTRATOR
+        ));
+
+        $object = $xmlConfig->get($this->getXpath());
+
+        if (is_null($object)) {
+            throw new OMVException(
+                OMVErrorMsg::E_CONFIG_GET_OBJECT_FAILED,
+                $this->getXpath()
+            );
+        }
+
+        // Validate the parameters of the RPC service method.
+        $this->validateMethodParams(
+            $params,
+            '{
+                "type": "object",
+                "properties": {
+                    "filename": { "type": "string" },
+                    "filepath": { "type": "string" }
+                }
+            }'
+        );
+
+        // Rename file so that it's recognized by the PharData class.
+        $filepath = sprintf("%s.tar.gz", $params["filepath"]);
+        rename($params["filepath"], $filepath);
+
+        $directoryIterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(
+                $this->couchpotato2SettingsDir,
+                FilesystemIterator::SKIP_DOTS
+            ),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
 
         foreach ($directoryIterator as $file) {
-            chown($file->getPathname(), $this->couchpotatoUser);
-            chgrp($file->getPathname(), $this->couchpotatoUser);
+            if ($file->isFile()) {
+                unlink($file->getPathname());
+            }
+
+            if ($file->isDir()) {
+                rmdir($file->getPathname());
+            }
+        }
+
+        $archive = new PharData($filepath);
+
+        $archive->extractTo($this->couchpotato2SettingsDir);
+        // Use users ownership settings
+        foreach ($directoryIterator as $file) {
+            chown($file->getPathname(), $object["username"]);
+            if ($object["usersgrp"] = "1") {
+                chgrp($file->getPathname(), "users");
+            } else {
+                chgrp($file->getPathname(), $object["username"]);
+            }
         }
 
         // Rename file back to orignal name so that OMV will remove it.

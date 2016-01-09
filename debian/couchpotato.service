@@ -1,0 +1,14 @@
+[Unit]
+Description=CouchPotato Daemon
+After=network-online.target
+
+[Service]
+User=couchpotato
+Group=users
+UMask=000
+Type=forking
+GuessMainPID=no
+ExecStart=/usr/bin/python /opt/couchpotato/CouchPotato.py --quiet --daemon --data_dir /var/opt/couchpotato
+
+[Install]
+WantedBy=multi-user.target

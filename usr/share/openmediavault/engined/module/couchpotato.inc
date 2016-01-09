@@ -26,6 +26,11 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract implements
     OMVINotifyListener,
     OMVIModuleServiceStatus
 {
+    private function getPluginName()
+    {
+        return strtolower($this->getName());
+    }
+
     private function getEventMessagePath()
     {
         return "org.openmediavault.service.couchpotato";
@@ -54,13 +59,13 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract implements
             );
         }
 
-        $initd = new OMVSysVInitScript($this->getName());
+        $systemCtl = new OMVSystemCtl($this->getPluginName());
 
         return array(
             "name" => $this->getName(),
             "title" => gettext("CouchPotato"),
             "enabled" => boolval($object["enable"]),
-            "running" => $initd->status() == 0
+            "running" => $systemCtl->isActive()
         );
     }
 
@@ -72,7 +77,7 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract implements
             throw new OMVException(
                 OMVErrorMsg::E_EXEC_FAILED,
                 $cmd,
-                implode("\n", $output)
+                implode(PHP_EOL, $output)
             );
         }
     }
@@ -90,18 +95,57 @@ class OMVModuleCouchpotato extends OMVModuleServiceAbstract implements
             );
         }
 
-        if (!boolval($object["enable"])) {
-            return;
+        if (boolval($object["enable"])) {
+
+            if ($object["branch"] == "Please choose a branch") {
+                throw new OMVException(
+                    OMVErrorMsg::E_MISC_FAILURE,
+                    "Please select a repository and branch"
+                );
+                return;
+            }
+
+            if ($object["repo"] == "Please choose a repository" ) {
+                throw new OMVException(
+                    OMVErrorMsg::E_MISC_FAILURE,
+                    "Please select a repository and branch"
+                );
+                return;
+            }
+
+            $systemCtl = new OMVSystemCtl($this->getPluginName());
+            $systemCtl->enable(true);
         }
 
-        $initd = new OMVSysVInitScript($this->getName(), true);
-        $initd->exec();
+        if (boolval($object["newinstance"])) {
+
+            if ($object["branch2"] == "Please choose a branch") {
+                throw new OMVException(
+                    OMVErrorMsg::E_MISC_FAILURE,
+                    "Please select a 2nd repository and branch"
+                );
+                return;
+            }
+
+            if ($object["repo2"] == "Please choose a repository" ) {
+                throw new OMVException(
+                    OMVErrorMsg::E_MISC_FAILURE,
+                    "Please select a 2nd repository and branch"
+                );
+                return;
+            }
+
+            if  (boolval($object["newinstenable"])) {
+                $systemCtl = new OMVSystemCtl("couchpotato2");
+                $systemCtl->enable(true);
+            }
+        }
     }
 
     public function stopService()
     {
-        $initd = new OMVSysVInitScript($this->getname());
-        $initd->exec();
+        $systemCtl = new OMVSystemCtl($this->getPluginName());
+        $systemCtl->disable(true);
     }
 
     public function bindListeners(OMVNotifyDispatcher $dispatcher)

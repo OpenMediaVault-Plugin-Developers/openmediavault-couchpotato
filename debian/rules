@@ -25,7 +25,7 @@ binary-indep: install omv_clean_scm
 	dh_testroot
 	dh_installchangelogs
 	dh_installdebconf
-	dh_installinit --no-start --name=couchpotato
+	dh_systemd_enable --name=couchpotato
 	dh_lintian
 	dh_link
 	dh_compress
