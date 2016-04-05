@@ -8,7 +8,7 @@ XB-Plugin-Section: downloaders
 
 Package: openmediavault-couchpotato
 Architecture: all
-Depends: openmediavault (>= 3.0),
+Depends: openmediavault (= 3.0.13),
          adduser,
          git,
          python,
