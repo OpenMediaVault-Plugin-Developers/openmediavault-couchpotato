@@ -17,8 +17,10 @@ migrate_data_location()
         # Migrate old data to new location.
         su -s /bin/sh -c "cp -ra /home/couchpotato/.couchpotato/* ${OMV_COUCHPOTATO_DATA_PATH}" $OMV_COUCHPOTATO_USER
 
-        # Remove couchpotato home directory.
-        if [ -d /home/couchpotato ]; then
+        if [ $? -ne 0 ]; then
+            exit 1
+        elif [ -d /home/couchpotato ]; then
+            # Remove couchpotato home directory.
             rm -rf /home/couchpotato
         fi
     fi
@@ -36,65 +38,145 @@ case "$1" in
         SERVICE_XPATH_NAME="couchpotato"
         SERVICE_XPATH="/config/services/${SERVICE_XPATH_NAME}"
 
+        if dpkg --compare-versions "${2}" lt-nl "3.1"; then
 
+           if omv_config_exists "${SERVICE_XPATH}"; then
+               ENABLE="$(omv_config_get "${SERVICE_XPATH}/enable")"
+               SHOWTAB="$(omv_config_get "${SERVICE_XPATH}/show_tab")"
+               BRANCH="$(omv_config_get "${SERVICE_XPATH}/branch")"
+               REPO="$(omv_config_get "${SERVICE_XPATH}/repo")"
+            else
+                ENABLE="0"
+                SHOWTAB="0"
+                BRANCH="Please choose a branch"
+                REPO="Please choose a repository"
+            fi
 
-        if omv_config_exists "${SERVICE_XPATH}"; then
-            ENABLE="$(omv_config_get "${SERVICE_XPATH}/enable")"
-            SHOWTAB="$(omv_config_get "${SERVICE_XPATH}/show_tab")"
-            BRANCH="$(omv_config_get "${SERVICE_XPATH}/branch")"
-            REPO="$(omv_config_get "${SERVICE_XPATH}/repo")"
-        else
-            ENABLE="0"
-            SHOWTAB="0"
-            BRANCH="Please choose a branch"
-            REPO="Please choose a repository"
+            if omv_config_exists "${SERVICE_XPATH}/username"; then
+                USERNAME="$(omv_config_get "${SERVICE_XPATH}/username")"
+                USERGRP="$(omv_config_get "${SERVICE_XPATH}/usersgrp")"
+                UMASK="$(omv_config_get "${SERVICE_XPATH}/umask")"
+            else
+                USERNAME="couchpotato"
+                USERGRP="0"
+                UMASK="000"
+            fi
+
+            if omv_config_exists "${SERVICE_XPATH}/repo2"; then
+                BRANCH2="$(omv_config_get "${SERVICE_XPATH}/branch2")"
+                REPO2="$(omv_config_get "${SERVICE_XPATH}/repo2")"
+                SSL="$(omv_config_get "${SERVICE_XPATH}/ssl")"
+                PPASS="$(omv_config_get "${SERVICE_XPATH}/ppass")"
+                INSTAL="$(omv_config_get "${SERVICE_XPATH}/newinstance")"
+                RUN="$(omv_config_get "${SERVICE_XPATH}/newinstenable")"
+                PORT="$(omv_config_get "${SERVICE_XPATH}/port")"
+            else
+                SSL="0"
+                PPASS="0"
+                BRANCH2="Please choose a branch"
+                REPO2="Please choose a repository"
+                INSTAL="0"
+                RUN="0"
+                PORT="5050"
+            fi
+
+            omv_config_delete "${SERVICE_XPATH}"
+
+            if ! omv_config_exists "${SERVICE_XPATH}"; then
+                omv_config_add_element "/config/services" "${SERVICE_XPATH_NAME}"
+                omv_config_add_element "${SERVICE_XPATH}" "newinstance" $INSTAL
+            fi
+
+            if ! omv_config_exists "${SERVICE_XPATH}/instances"; then
+                omv_config_add_element "${SERVICE_XPATH}" "instances"
+            fi
+
+            if ! omv_config_exists "${SERVICE_XPATH}/forks"; then
+                omv_config_add_element "${SERVICE_XPATH}" "forks" $FORKS
+            fi
+
+            if ! omv_config_exists "${SERVICE_XPATH}/instances/instance1"; then
+                omv_config_add_element "${SERVICE_XPATH}/instances" "instance1"
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "enable" $ENABLE
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "repo" $REPO
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "branch" $BRANCH
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "ssl" $SSL
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "ppass" $PPASS
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "mntentref"
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "db-folder" "/var/opt/couchpotato"
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "username" $USERNAME
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "usersgrp" $USERGRP
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "umask" $UMASK
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "showtab" $SHOWTAB
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "port" $PORT
+            fi
+
+            if ! omv_config_exists "${SERVICE_XPATH}/instances/instance2"; then
+                omv_config_add_element "${SERVICE_XPATH}/instances" "instance2"
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "enable" $RUN
+                omv_config_add_element "${SEERVICE_XPATH}/instances/instance2" "ssl" $SSL
+                omv_config_add_element "${SRVICE_XPATH}/instances/instance2" "repo" $REPO2
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "branch" $BRANCH2
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "ppass" $PPASS
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "mntentref"
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "db-folder" "/var/opt/couchpotato2"
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "username" $USERNAME
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "usersgrp" $USERGRP
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "umask" $UMASK
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "showtab" $SHOWTAB
+                omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "port" "5052"
+            fi
+
+        rm -f /var/cache/openmediavault/cache.*.json >/dev/null 2>&1
+
         fi
 
-        if omv_config_exists "${SERVICE_XPATH}/username"; then
-            USERNAME="$(omv_config_get "${SERVICE_XPATH}/username")"
-            USERGRP="$(omv_config_get "${SERVICE_XPATH}/usersgrp")"
-            UMASK="$(omv_config_get "${SERVICE_XPATH}/umask")"
-        else
-            USERNAME="couchpotato"
-            USERGRP="0"
-            UMASK="000"
+        if ! omv_config_exists "${SERVICE_XPATH}"; then
+            echo "Updating configuration"
+
+            omv_config_add_element "/config/services" "${SERVICE_XPATH_NAME}"
+            omv_config_add_element "${SERVICE_XPATH}" "newinstance" "0"
         fi
 
-        if omv_config_exists "${SERVICE_XPATH}/repo2"; then
-            BRANCH2="$(omv_config_get "${SERVICE_XPATH}/branch2")"
-            REPO2="$(omv_config_get "${SERVICE_XPATH}/repo2")"
-            SSL="$(omv_config_get "${SERVICE_XPATH}/ssl")"
-            PPASS="$(omv_config_get "${SERVICE_XPATH}/ppass")"
-            INSTAL="$(omv_config_get "${SERVICE_XPATH}/newinstance")"
-            RUN="$(omv_config_get "${SERVICE_XPATH}/newinstenable")"
-            PORT="$(omv_config_get "${SERVICE_XPATH}/port")"
-        else
-            SSL="0"
-            PPASS="0"
-            BRANCH2="Please choose a branch"
-            REPO2="Please choose a repository"
-            INSTAL="0"
-            RUN="0"
-            PORT="5050"
+        if ! omv_config_exists "${SERVICE_XPATH}/instances"; then
+            omv_config_add_element "${SERVICE_XPATH}" "instances"
         fi
 
-        omv_config_delete "${SERVICE_XPATH}"
+        if ! omv_config_exists "${SERVICE_XPATH}/forks"; then
+            omv_config_add_element "${SERVICE_XPATH}" "forks"
+        fi
 
-        omv_config_add_element "/config/services" "${SERVICE_XPATH_NAME}"
-        omv_config_add_element "${SERVICE_XPATH}" "enable" $ENABLE
-        omv_config_add_element "${SERVICE_XPATH}" "repo" $REPO
-        omv_config_add_element "${SERVICE_XPATH}" "branch" $BRANCH
-        omv_config_add_element "${SERVICE_XPATH}" "repo2" $REPO2
-        omv_config_add_element "${SERVICE_XPATH}" "branch2" $BRANCH2
-        omv_config_add_element "${SERVICE_XPATH}" "show_tab" $SHOWTAB
-        omv_config_add_element "${SERVICE_XPATH}" "username" $USERNAME
-        omv_config_add_element "${SERVICE_XPATH}" "usersgrp" $USERGRP
-        omv_config_add_element "${SERVICE_XPATH}" "umask" $UMASK
-        omv_config_add_element "${SERVICE_XPATH}" "port" $PORT
-        omv_config_add_element "${SERVICE_XPATH}" "newinstance" $INSTAL
-        omv_config_add_element "${SERVICE_XPATH}" "newinstenable" $RUN
-        omv_config_add_element "${SERVICE_XPATH}" "ssl" $SSL
-        omv_config_add_element "${SERVICE_XPATH}" "PPASS" $PPASS
+        if ! omv_config_exists "${SERVICE_XPATH}/instances/instance1"; then
+            omv_config_add_element "${SERVICE_XPATH}/instances" "instance1"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "enable" "0"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "repo" "Please choose a repository"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "branch" "Please choose a branch"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "ssl" "0"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "ppass" "0"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "mntentref"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "db-folder" "/var/opt/couchpotato"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "username" "couchpotato"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "usersgrp" "0"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "umask" "000"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "showtab" "0"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance1" "port" "5050"
+        fi
+
+        if ! omv_config_exists "${SERVICE_XPATH}/instances/instance2"; then
+            omv_config_add_element "${SERVICE_XPATH}/instances" "instance2"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "enable" "0"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "repo" "Please choose a repository"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "branch" "Please choose a branch"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "ssl" "0"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "ppass" "0"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "mntentref"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "db-folder" "/var/opt/couchpotato2"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "username" "couchpotato"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "usersgrp" "0"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "umask" "000"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "showtab" "0"
+            omv_config_add_element "${SERVICE_XPATH}/instances/instance2" "port" "5052"
+        fi
 
         if ! getent passwd couchpotato >/dev/null 2>&1; then
             adduser --quiet \
@@ -105,12 +187,17 @@ case "$1" in
                     $OMV_COUCHPOTATO_USER
         fi
 
-        chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_USER $OMV_COUCHPOTATO_APP_PATH
-        chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_USER $OMV_COUCHPOTATO_DATA_PATH
-
         if dpkg --compare-versions "${2}" lt-nl "1.1"; then
             migrate_data_location
         fi
+
+        if [ ! -d /var/opt/couchpotato ]; then
+            mkdir -p /var/opt/couchpotato
+        fi
+
+        chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_USER $OMV_COUCHPOTATO_APP_PATH
+        chown $OMV_COUCHPOTATO_USER:$OMV_COUCHPOTATO_USER $OMV_COUCHPOTATO_DATA_PATH
+
 
         # Activate package triggers. These triggers are only set during the
         # package installation.

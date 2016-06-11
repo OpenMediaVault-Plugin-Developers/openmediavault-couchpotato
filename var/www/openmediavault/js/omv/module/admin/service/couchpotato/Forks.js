@@ -118,7 +118,7 @@ OMV.WorkspaceManager.registerPanel({
     id: "scheduledjobs",
     path: "/service/couchpotato",
     text: _("Forks"),
-    position: 20,
+    position: 60,
     className: "OMV.module.admin.service.couchpotato.Forks"
 });
 
