@@ -111,10 +111,10 @@ Ext.define("OMV.module.admin.service.couchpotato.Instance1", {
             handler: function() {
                 var proxy = this.getForm().findField("ppass").getValue();
                 if (proxy == true) {
-                    var link = "http://" + location.hostname + "/couchpotato/home/";
+                    var link = "http://" + location.hostname + "/couchpotato/";
                 } else {
                     var port = this.getForm().findField("port").getValue();
-                    var link = "http://" + location.hostname + ":" + port + "/home/";
+                    var link = "http://" + location.hostname + ":" + port + "/";
                 }
                 window.open(link, "_blank");
             }
