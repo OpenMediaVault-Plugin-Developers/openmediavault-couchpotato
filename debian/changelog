@@ -1,3 +1,9 @@
+openmediavault-couchpotato (3.2.1) UNRELEASED; urgency=medium
+
+  * Fix mntentref error
+
+ -- OpenMediaVault Plugin Developers <plugins@omv-extras.org>  Tue, 05 Jul 2016 11:35:15 +0100
+
 openmediavault-couchpotato (3.2) stable; urgency=low
 
   * OMV3.2 Version

@@ -152,6 +152,7 @@ class Couchpotato extends ServiceAbstract
         $this->validateMethodContext($context, ['role' => OMV_ROLE_ADMINISTRATOR]);
 
         if (empty($params['mntentref']) || $params['mntentref'] == "Select a volume or leave blank for default.") {
+            $params['mntentref'] = "Select a volume or leave blank for default.";
             $this->validateMethodParams($params, 'rpc.couchpotato.setsettings1');
             $params['db-folder'] = "/var/opt/couchpotato";
         } else {
@@ -243,6 +244,7 @@ class Couchpotato extends ServiceAbstract
         $this->validateMethodContext($context, ['role' => OMV_ROLE_ADMINISTRATOR]);
 
         if (empty($params['mntentref']) || $params['mntentref'] == "Select a volume or leave blank for default.") {
+            $params['mntentref'] = "Select a volume or leave blank for default.";
             $this->validateMethodParams($params, 'rpc.couchpotato.setsettings2');
             $params['db-folder'] = "/var/opt/couchpotato2";
         } else {
