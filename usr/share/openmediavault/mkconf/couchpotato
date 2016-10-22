@@ -124,13 +124,6 @@ switch_branch()
     cd $OMV_COUCHPOTATO1_APP_PATH
     su -s /bin/sh -c "git reset --hard --quiet" $OMV_COUCHPOTATO1_USER
     su -s /bin/sh -c "git checkout $branch --quiet" $OMV_COUCHPOTATO1_USER
-
-    if [ $repo = "https://github.com/SickRage/SickRage.git" ]; then
-        if [ $branch = "master" ]; then
-            rm -R "${OMV_COUCHPOTATO1_APP_PATH}lib/requests" > /dev/null 2>&1
-            su -s /bin/sh -c "git reset --hard --quiet" $OMV_COUCHPOTATO1_USER
-        fi
-    fi
 }
 
 if [ $enable = "1" ]; then
